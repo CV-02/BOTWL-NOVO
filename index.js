@@ -62,62 +62,6 @@ let CHANNEL_WL_RESULTS = "ID_CANAL_RESULTADOS_WL";
 let CHANNEL_KEEP_ALIVE = "ID_CANAL_KEEP_ALIVE";
 let ROLE_MEMBER = "ID_CARGO_MEMBRO";
 
-// ✅ **Função Keep-Alive para evitar hibernação**
-let keepAliveMessage;
-async function keep_alive_loop() {
-    setInterval(async () => {
-        try {
-            const channel = await client.channels.fetch(CHANNEL_KEEP_ALIVE).catch(console.error);
-            if (channel) {
-                const dataHora = moment().tz("America/Sao_Paulo").format("DD/MM/YYYY HH:mm:ss");
-                const mensagem = `✅ **Bot funcionando!** 📅 **Data/Hora:** ${dataHora}`;
-
-                if (keepAliveMessage) {
-                    await keepAliveMessage.edit(mensagem).catch(console.error);
-                } else {
-                    keepAliveMessage = await channel.send(mensagem).catch(console.error);
-                }
-                console.log(`📌 Log atualizado no Discord: ${mensagem}`);
-            }
-        } catch (error) {
-            console.error("❌ Erro no Keep-Alive:", error);
-        }
-
-        axios.get("https://seu-bot.onrender.com/").catch((err) => console.error("Erro no Keep-Alive HTTP:", err));
-    }, 120000);
-}
-
-// ✅ **Função de Status do Bot**
-let statusMessage;
-async function updateBotStatus() {
-    const channel = await client.channels.fetch(CHANNEL_KEEP_ALIVE).catch(console.error);
-    if (!channel) return console.error("❌ Canal de Status não encontrado!");
-
-    const uptime = Math.floor(client.uptime / 1000); // Tempo online em segundos
-    const ping = client.ws.ping; // Ping da conexão
-    const servidores = client.guilds.cache.size; // Quantidade de servidores
-
-    const embed = new EmbedBuilder()
-        .setTitle("📊 Painel de Status do Bot")
-        .setColor("Blue")
-        .addFields(
-            { name: "🟢 Online há", value: `<t:${Math.floor(Date.now() / 1000 - uptime)}:R>`, inline: true },
-            { name: "📡 Ping", value: `${ping}ms`, inline: true },
-            { name: "🌎 Servidores", value: `${servidores}`, inline: true }
-        )
-        .setFooter({ text: `Última atualização` })
-        .setTimestamp();
-
-    if (statusMessage) {
-        await statusMessage.edit({ embeds: [embed] }).catch(console.error);
-    } else {
-        statusMessage = await channel.send({ embeds: [embed] }).catch(console.error);
-    }
-}
-
-// Atualiza o status a cada 5 minutos
-setInterval(updateBotStatus, 300000);
-
 // ✅ **Criar canais automaticamente caso não existam**
 client.once("ready", async () => {
     await sequelize.sync();
@@ -180,8 +124,91 @@ client.once("ready", async () => {
         });
     }
 
-    keep_alive_loop(); // ✅ Agora a função já foi definida antes
+    keep_alive_loop();
     updateBotStatus();
+});
+
+// ✅ **Painel de Status do Bot**
+let statusMessage;
+async function updateBotStatus() {
+    const channel = await client.channels.fetch(CHANNEL_KEEP_ALIVE).catch(console.error);
+    if (!channel) return console.error("❌ Canal de Status não encontrado!");
+
+    const uptime = Math.floor(client.uptime / 1000);
+    const ping = client.ws.ping;
+    const servidores = client.guilds.cache.size;
+
+    const embed = new EmbedBuilder()
+        .setTitle("📊 Painel de Status do Bot")
+        .setColor("Blue")
+        .addFields(
+            { name: "🟢 Online há", value: `<t:${Math.floor(Date.now() / 1000 - uptime)}:R>`, inline: true },
+            { name: "📡 Ping", value: `${ping}ms`, inline: true },
+            { name: "🌎 Servidores", value: `${servidores}`, inline: true }
+        )
+        .setFooter({ text: `Última atualização` })
+        .setTimestamp();
+
+    if (statusMessage) {
+        await statusMessage.edit({ embeds: [embed] }).catch(console.error);
+    } else {
+        statusMessage = await channel.send({ embeds: [embed] }).catch(console.error);
+    }
+}
+
+// Atualiza o status a cada 5 minutos
+setInterval(updateBotStatus, 300000);
+
+// ✅ **Resultados da Whitelist em Formato de Painel**
+client.on("interactionCreate", async (interaction) => {
+    if (interaction.isButton() && interaction.customId === "start_wl") {
+        const modal = new ModalBuilder()
+            .setCustomId("wl_form")
+            .setTitle("Whitelist")
+            .addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder().setCustomId("nome").setLabel("Nome").setStyle(TextInputStyle.Short).setRequired(true),
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder().setCustomId("id").setLabel("ID").setStyle(TextInputStyle.Short).setRequired(true),
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder().setCustomId("recrutadorNome").setLabel("Nome do Recrutador").setStyle(TextInputStyle.Short).setRequired(true),
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder().setCustomId("recrutadorId").setLabel("ID do Recrutador").setStyle(TextInputStyle.Short).setRequired(true),
+                ),
+            );
+
+        await interaction.showModal(modal);
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId === "wl_form") {
+        const nome = interaction.fields.getTextInputValue("nome");
+        const id = interaction.fields.getTextInputValue("id");
+        const recrutadorNome = interaction.fields.getTextInputValue("recrutadorNome");
+        const recrutadorId = interaction.fields.getTextInputValue("recrutadorId");
+        const user = interaction.user;
+
+        const embed = new EmbedBuilder()
+            .setTitle("✅ Whitelist Aprovada!")
+            .setColor("Green")
+            .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+            .addFields(
+                { name: "👤 Nome", value: nome, inline: true },
+                { name: "🆔 ID", value: id, inline: true },
+                { name: "📜 Recrutador", value: recrutadorNome, inline: true },
+                { name: "🔑 ID do Recrutador", value: recrutadorId, inline: true }
+            )
+            .setTimestamp();
+
+        const resultsChannel = client.channels.cache.get(CHANNEL_WL_RESULTS);
+        if (resultsChannel) {
+            await resultsChannel.send({ embeds: [embed] });
+        }
+
+        await interaction.reply({ content: "✅ WL enviada!", ephemeral: true });
+    }
 });
 
 client.login(process.env.TOKEN);
