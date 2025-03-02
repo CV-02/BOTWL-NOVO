@@ -9,6 +9,7 @@ import {
     TextInputBuilder,
     TextInputStyle,
     PermissionsBitField,
+    EmbedBuilder,
 } from "discord.js";
 import { Sequelize, DataTypes } from "sequelize";
 import axios from "axios";
@@ -35,6 +36,8 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildPresences,
+        GatewayIntentBits.MessageContent,
     ],
 });
 
@@ -122,11 +125,11 @@ client.once("ready", async () => {
     }
 
     keep_alive_loop();
+    updateBotStatus(); // Inicia o painel de status
 });
 
 // ✅ **Sistema Keep-Alive**
 let keepAliveMessage;
-
 async function keep_alive_loop() {
     setInterval(async () => {
         try {
@@ -181,27 +184,24 @@ client.on("interactionCreate", async (interaction) => {
         const recrutadorId = interaction.fields.getTextInputValue("recrutadorId");
         const user = interaction.user;
 
-        await Whitelist.upsert({
-            userId: user.id,
-            nome,
-            id,
-            recrutadorNome,
-            recrutadorId,
-        });
+        const embed = new EmbedBuilder()
+            .setTitle("✅ Whitelist Aprovada!")
+            .setColor("Green")
+            .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+            .addFields(
+                { name: "👤 Nome", value: nome, inline: true },
+                { name: "🆔 ID", value: id, inline: true },
+                { name: "📜 Recrutador", value: recrutadorNome, inline: true },
+                { name: "🔑 ID do Recrutador", value: recrutadorId, inline: true }
+            )
+            .setTimestamp();
 
-        const guild = interaction.guild;
-        const member = await guild.members.fetch(user.id);
-        const role = guild.roles.cache.get(ROLE_MEMBER);
-        if (role) await member.roles.add(role);
-
-        await member.setNickname(`${nome} | ${id}`).catch(console.error);
-
-        const resultsChannel = guild.channels.cache.get(CHANNEL_WL_RESULTS);
+        const resultsChannel = client.channels.cache.get(CHANNEL_WL_RESULTS);
         if (resultsChannel) {
-            await resultsChannel.send(`✅ ${user} aprovado na WL! Nome: **${nome}** | ID: **${id}**`);
+            await resultsChannel.send({ embeds: [embed] });
         }
 
-        await interaction.reply({ content: "✅ WL enviada com sucesso!", ephemeral: true });
+        await interaction.reply({ content: "✅ WL enviada!", ephemeral: true });
     }
 });
 
