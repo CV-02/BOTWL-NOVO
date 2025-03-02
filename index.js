@@ -128,30 +128,36 @@ client.once("ready", async () => {
     updateBotStatus(); // Inicia o painel de status
 });
 
-// ✅ **Sistema Keep-Alive**
-let keepAliveMessage;
-async function keep_alive_loop() {
-    setInterval(async () => {
-        try {
-            const channel = await client.channels.fetch(CHANNEL_KEEP_ALIVE).catch(console.error);
-            if (channel) {
-                const dataHora = moment().tz("America/Sao_Paulo").format("DD/MM/YYYY HH:mm:ss");
-                const mensagem = `✅ **Bot funcionando!** 📅 **Data/Hora:** ${dataHora}`;
+// ✅ **Função de Status do Bot**
+let statusMessage;
+async function updateBotStatus() {
+    const channel = await client.channels.fetch(CHANNEL_KEEP_ALIVE).catch(console.error);
+    if (!channel) return console.error("❌ Canal de Status não encontrado!");
 
-                if (keepAliveMessage) {
-                    await keepAliveMessage.edit(mensagem).catch(console.error);
-                } else {
-                    keepAliveMessage = await channel.send(mensagem).catch(console.error);
-                }
-                console.log(`📌 Log atualizado no Discord: ${mensagem}`);
-            }
-        } catch (error) {
-            console.error("❌ Erro no Keep-Alive:", error);
-        }
+    const uptime = Math.floor(client.uptime / 1000); // Tempo online em segundos
+    const ping = client.ws.ping; // Ping da conexão
+    const servidores = client.guilds.cache.size; // Quantidade de servidores
 
-        axios.get("https://seu-bot.onrender.com/").catch((err) => console.error("Erro no Keep-Alive HTTP:", err));
-    }, 120000);
+    const embed = new EmbedBuilder()
+        .setTitle("📊 Painel de Status do Bot")
+        .setColor("Blue")
+        .addFields(
+            { name: "🟢 Online há", value: `<t:${Math.floor(Date.now() / 1000 - uptime)}:R>`, inline: true },
+            { name: "📡 Ping", value: `${ping}ms`, inline: true },
+            { name: "🌎 Servidores", value: `${servidores}`, inline: true }
+        )
+        .setFooter({ text: `Última atualização` })
+        .setTimestamp();
+
+    if (statusMessage) {
+        await statusMessage.edit({ embeds: [embed] }).catch(console.error);
+    } else {
+        statusMessage = await channel.send({ embeds: [embed] }).catch(console.error);
+    }
 }
+
+// Atualiza o status a cada 5 minutos
+setInterval(updateBotStatus, 300000);
 
 // ✅ **Sistema de Whitelist**
 client.on("interactionCreate", async (interaction) => {
@@ -175,33 +181,6 @@ client.on("interactionCreate", async (interaction) => {
             );
 
         await interaction.showModal(modal);
-    }
-
-    if (interaction.isModalSubmit() && interaction.customId === "wl_form") {
-        const nome = interaction.fields.getTextInputValue("nome");
-        const id = interaction.fields.getTextInputValue("id");
-        const recrutadorNome = interaction.fields.getTextInputValue("recrutadorNome");
-        const recrutadorId = interaction.fields.getTextInputValue("recrutadorId");
-        const user = interaction.user;
-
-        const embed = new EmbedBuilder()
-            .setTitle("✅ Whitelist Aprovada!")
-            .setColor("Green")
-            .setThumbnail(user.displayAvatarURL({ dynamic: true }))
-            .addFields(
-                { name: "👤 Nome", value: nome, inline: true },
-                { name: "🆔 ID", value: id, inline: true },
-                { name: "📜 Recrutador", value: recrutadorNome, inline: true },
-                { name: "🔑 ID do Recrutador", value: recrutadorId, inline: true }
-            )
-            .setTimestamp();
-
-        const resultsChannel = client.channels.cache.get(CHANNEL_WL_RESULTS);
-        if (resultsChannel) {
-            await resultsChannel.send({ embeds: [embed] });
-        }
-
-        await interaction.reply({ content: "✅ WL enviada!", ephemeral: true });
     }
 });
 
