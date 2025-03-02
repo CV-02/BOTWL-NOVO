@@ -52,12 +52,62 @@ const Whitelist = sequelize.define("Whitelist", {
     recrutadorId: DataTypes.STRING,
 });
 
+// **NOVOS IDs para o novo servidor**
+let CHANNEL_WL_BUTTON = "ID_CANAL_BOTAO_WL";
+let CHANNEL_WL_REQUESTS = "ID_CANAL_SOLICITACOES_WL";
+let CHANNEL_WL_RESULTS = "ID_CANAL_RESULTADOS_WL";
+let CHANNEL_KEEP_ALIVE = "ID_CANAL_KEEP_ALIVE";
+let ROLE_MEMBER = "ID_CARGO_MEMBRO";
+
+// ✅ **Criar canais automaticamente caso não existam**
 client.once("ready", async () => {
     await sequelize.sync();
     console.log(`✅ Bot online como ${client.user.tag}`);
 
-    // Enviar o botão de Whitelist automaticamente no canal correto
-    const channel = await client.channels.fetch("1338158040767139923").catch(console.error);
+    const guild = client.guilds.cache.first();
+    if (!guild) {
+        console.error("❌ Servidor não encontrado!");
+        return;
+    }
+
+    async function createChannel(name, type) {
+        const existingChannel = guild.channels.cache.find(c => c.name === name);
+        if (existingChannel) return existingChannel.id;
+
+        const newChannel = await guild.channels.create({
+            name,
+            type,
+            permissionOverwrites: [
+                {
+                    id: guild.roles.everyone,
+                    allow: [PermissionsBitField.Flags.ViewChannel],
+                },
+            ],
+        });
+
+        console.log(`📌 Canal criado: ${name} (ID: ${newChannel.id})`);
+        return newChannel.id;
+    }
+
+    // Criar canais automaticamente
+    CHANNEL_WL_BUTTON = await createChannel("whitelist-botao", 0);
+    CHANNEL_WL_REQUESTS = await createChannel("whitelist-solicitacoes", 0);
+    CHANNEL_WL_RESULTS = await createChannel("whitelist-resultados", 0);
+    CHANNEL_KEEP_ALIVE = await createChannel("bot-logs", 0);
+
+    // Criar cargo automaticamente se não existir
+    let role = guild.roles.cache.find(r => r.name === "Membro");
+    if (!role) {
+        role = await guild.roles.create({
+            name: "Membro",
+            permissions: [],
+        });
+        console.log(`📌 Cargo criado: Membro (ID: ${role.id})`);
+    }
+    ROLE_MEMBER = role.id;
+
+    // Enviar botão de Whitelist
+    const channel = await client.channels.fetch(CHANNEL_WL_BUTTON).catch(console.error);
     if (channel) {
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -71,18 +121,10 @@ client.once("ready", async () => {
         });
     }
 
-    // Iniciar o loop de Keep-Alive
     keep_alive_loop();
 });
 
-// IDs dos canais e cargo
-const CHANNEL_WL_BUTTON = "1338158040767139923";
-const CHANNEL_WL_REQUESTS = "1338158041958191175";
-const CHANNEL_WL_RESULTS = "1338158706810159134";
-const CHANNEL_KEEP_ALIVE = "1338192023244509195"; // Canal para Keep-Alive
-const ROLE_MEMBER = "1336379079494205521";
-
-// Keep-Alive: Envia uma mensagem a cada 2 minutos no canal especificado e faz um ping HTTP para o próprio bot
+// ✅ **Sistema Keep-Alive**
 let keepAliveMessage;
 
 async function keep_alive_loop() {
@@ -90,10 +132,8 @@ async function keep_alive_loop() {
         try {
             const channel = await client.channels.fetch(CHANNEL_KEEP_ALIVE).catch(console.error);
             if (channel) {
-                // Obtém a data e hora formatadas no fuso horário de Brasília
                 const dataHora = moment().tz("America/Sao_Paulo").format("DD/MM/YYYY HH:mm:ss");
-
-                const mensagem = `✅ **Bot funcionando perfeitamente!** 📅 **Data/Hora:** ${dataHora}`;
+                const mensagem = `✅ **Bot funcionando!** 📅 **Data/Hora:** ${dataHora}`;
 
                 if (keepAliveMessage) {
                     await keepAliveMessage.edit(mensagem).catch(console.error);
@@ -103,17 +143,14 @@ async function keep_alive_loop() {
                 console.log(`📌 Log atualizado no Discord: ${mensagem}`);
             }
         } catch (error) {
-            console.error("❌ Erro ao enviar Keep-Alive no Discord:", error);
+            console.error("❌ Erro no Keep-Alive:", error);
         }
 
-        // Ping no próprio servidor para evitar hibernação no Render
-        axios.get("https://seu-bot.onrender.com/")
-            .then(() => console.log("🔄 Keep-Alive no Render funcionando!"))
-            .catch((err) => console.error("Erro no Keep-Alive HTTP:", err));
-
-    }, 120000); // A cada 2 minutos (120000 ms)
+        axios.get("https://seu-bot.onrender.com/").catch((err) => console.error("Erro no Keep-Alive HTTP:", err));
+    }, 120000);
 }
 
+// ✅ **Sistema de Whitelist**
 client.on("interactionCreate", async (interaction) => {
     if (interaction.isButton() && interaction.customId === "start_wl") {
         const modal = new ModalBuilder()
@@ -121,32 +158,16 @@ client.on("interactionCreate", async (interaction) => {
             .setTitle("Whitelist")
             .addComponents(
                 new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId("nome")
-                        .setLabel("Digite seu nome")
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true),
+                    new TextInputBuilder().setCustomId("nome").setLabel("Nome").setStyle(TextInputStyle.Short).setRequired(true),
                 ),
                 new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId("id")
-                        .setLabel("Digite seu ID")
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true),
+                    new TextInputBuilder().setCustomId("id").setLabel("ID").setStyle(TextInputStyle.Short).setRequired(true),
                 ),
                 new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId("recrutadorNome")
-                        .setLabel("Nome do Recrutador")
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true),
+                    new TextInputBuilder().setCustomId("recrutadorNome").setLabel("Nome do Recrutador").setStyle(TextInputStyle.Short).setRequired(true),
                 ),
                 new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId("recrutadorId")
-                        .setLabel("ID do Recrutador")
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true),
+                    new TextInputBuilder().setCustomId("recrutadorId").setLabel("ID do Recrutador").setStyle(TextInputStyle.Short).setRequired(true),
                 ),
             );
 
@@ -170,32 +191,18 @@ client.on("interactionCreate", async (interaction) => {
 
         const guild = interaction.guild;
         const member = await guild.members.fetch(user.id);
-
-        // Atribuir o cargo de Membro
         const role = guild.roles.cache.get(ROLE_MEMBER);
-        if (role) {
-            await member.roles.add(role).catch((err) => console.error(`Erro ao adicionar cargo: ${err}`));
-        } else {
-            console.error(`Cargo '${ROLE_MEMBER}' não encontrado!`);
-        }
+        if (role) await member.roles.add(role);
 
-        // Alterar o nome do usuário
         await member.setNickname(`${nome} | ${id}`).catch(console.error);
 
-        // Enviar resultado
         const resultsChannel = guild.channels.cache.get(CHANNEL_WL_RESULTS);
         if (resultsChannel) {
-            await resultsChannel.send(
-                `✅ ${user} foi aprovado na WL! Nome: **${nome}** | ID: **${id}** | Recrutador: **${recrutadorNome}** (ID: ${recrutadorId})`,
-            );
+            await resultsChannel.send(`✅ ${user} aprovado na WL! Nome: **${nome}** | ID: **${id}**`);
         }
 
-        await interaction.reply({
-            content: "✅ Whitelist enviada com sucesso! Cargo de Membro adicionado.",
-            ephemeral: true,
-        });
+        await interaction.reply({ content: "✅ WL enviada com sucesso!", ephemeral: true });
     }
 });
 
-// Logar o bot
 client.login(process.env.TOKEN);
