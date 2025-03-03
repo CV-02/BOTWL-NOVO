@@ -69,7 +69,7 @@ client.once("ready", async () => {
         if (!channel) {
             channel = await guild.channels.create({
                 name,
-                type: 0, // Tipo 'GUILD_TEXT'
+                type: 0, 
                 permissionOverwrites: [
                     {
                         id: guild.id,
@@ -124,41 +124,50 @@ async function keep_alive_loop(channelId) {
 }
 
 client.on("interactionCreate", async (interaction) => {
-    if (interaction.isButton() && interaction.customId === "start_wl") {
-        const modal = new ModalBuilder()
-            .setCustomId("wl_form")
-            .setTitle("Whitelist")
-            .addComponents(
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId("nome")
-                        .setLabel("Digite seu nome")
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true),
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId("id")
-                        .setLabel("Digite seu ID")
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true),
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId("recrutadorNome")
-                        .setLabel("Nome do Recrutador")
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true),
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId("recrutadorId")
-                        .setLabel("ID do Recrutador")
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true),
-                ),
-            );
-        await interaction.showModal(modal);
+    try {
+        console.log("Interação recebida:", interaction.customId);
+        if (interaction.isButton() && interaction.customId === "start_wl") {
+            const modal = new ModalBuilder()
+                .setCustomId("wl_form")
+                .setTitle("Whitelist")
+                .addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId("nome")
+                            .setLabel("Digite seu nome")
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(true),
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId("id")
+                            .setLabel("Digite seu ID")
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(true),
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId("recrutadorNome")
+                            .setLabel("Nome do Recrutador")
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(true),
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId("recrutadorId")
+                            .setLabel("ID do Recrutador")
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(true),
+                    ),
+                );
+            await interaction.showModal(modal);
+        }
+    } catch (error) {
+        console.error("Erro ao processar interação:", error);
+        await interaction.reply({
+            content: "❌ Ocorreu um erro ao processar sua whitelist. Tente novamente!",
+            ephemeral: true,
+        });
     }
 });
 
