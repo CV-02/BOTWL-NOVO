@@ -41,7 +41,7 @@ client.once("ready", async () => {
                     name: roleName,
                     permissions: [],
                     mentionable: true,
-                    color: "BLUE",
+                    color: "#3498db", // Azul padrão
                 });
                 console.log(`✅ Cargo criado: ${role.name}`);
             } catch (error) {
@@ -66,15 +66,22 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             // Obtém a sigla do cargo mais alto
             const highestRole = roles.first();
             const prefix = rolePrefixes[highestRole.name.toUpperCase()];
-            newNickname = `${prefix} ${newMember.user.username}`;
+            
+            // Verifica se o nome já está correto para evitar atualizações desnecessárias
+            if (!newMember.nickname || !newMember.nickname.startsWith(prefix)) {
+                newNickname = `${prefix} ${newMember.user.username}`;
+                await newMember.setNickname(newNickname).catch(console.error);
+                console.log(`🔄 Nick atualizado para: ${newNickname}`);
+            }
         } else {
             // Remove qualquer sigla se não houver cargos válidos
-            newNickname = newMember.user.username;
-        }
-        
-        if (newMember.nickname !== newNickname) {
-            await newMember.setNickname(newNickname).catch(console.error);
-            console.log(`🔄 Nick atualizado para: ${newNickname}`);
+            const regex = new RegExp(`^(${Object.values(rolePrefixes).join("|")}) `, "i");
+            newNickname = newMember.nickname ? newMember.nickname.replace(regex, "").trim() : newMember.user.username;
+            
+            if (newNickname !== newMember.nickname) {
+                await newMember.setNickname(newNickname).catch(console.error);
+                console.log(`🔄 Sigla removida. Novo nick: ${newNickname}`);
+            }
         }
     } catch (error) {
         console.error("❌ Erro ao atualizar nickname:", error);
@@ -82,3 +89,4 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
 });
 
 client.login(process.env.TOKEN);
+
