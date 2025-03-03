@@ -19,7 +19,7 @@ const rolePrefixes = {
     "1341206842776359045": "💸[G.V]",
     "1336465729016303768": "🧰[G.R]",
     "1281863970676019253": "💎[REC]",
-    "1336412910582366349": "🎯[RES.ELITE]",
+    "1336412910582366349": "🎯[ELITE]",
     "1336410539663949935": "🎯[ELITE]",
     "1336379079494205521": "[Membro]"
 };
@@ -44,14 +44,14 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             const highestRole = roles.first();
             const prefix = rolePrefixes[highestRole.id];
             
-            newNickname = `${prefix} ${newMember.user.username}`;
+            newNickname = `${prefix} ${newMember.nickname || newMember.user.username}`;
             
             if (newMember.nickname !== newNickname) {
                 await newMember.setNickname(newNickname).catch(console.error);
                 console.log(`🔄 Nick atualizado para: ${newNickname}`);
             }
         } else {
-            // Remove qualquer sigla se não houver cargos válidos
+            // Remove qualquer sigla se não houver cargos válidos, mantendo o nome do servidor
             const regex = new RegExp(`^(${Object.values(rolePrefixes).join("|")}) `, "i");
             newNickname = newMember.nickname ? newMember.nickname.replace(regex, "").trim() : newMember.user.username;
             
