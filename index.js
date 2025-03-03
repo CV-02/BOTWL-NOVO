@@ -81,6 +81,21 @@ client.once("ready", async () => {
         }
         createdChannels[key] = channel.id;
     }
+
+    const buttonChannel = await client.channels.fetch(createdChannels.whitelistButton).catch(console.error);
+    if (buttonChannel) {
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("start_wl")
+                .setLabel("📋 Iniciar Whitelist")
+                .setStyle(ButtonStyle.Primary),
+        );
+
+        await buttonChannel.send({
+            content: "**Clique no botão abaixo para iniciar a Whitelist!**",
+            components: [row],
+        });
+    }
 });
 
 client.on("interactionCreate", async (interaction) => {
@@ -122,44 +137,6 @@ client.on("interactionCreate", async (interaction) => {
                     ),
                 );
             await interaction.showModal(modal);
-        } else if (interaction.isModalSubmit() && interaction.customId === "wl_form") {
-            await interaction.deferReply({ ephemeral: true });
-            
-            const nome = interaction.fields.getTextInputValue("nome");
-            const id = interaction.fields.getTextInputValue("id");
-            const recrutadorNome = interaction.fields.getTextInputValue("recrutadorNome");
-            const recrutadorId = interaction.fields.getTextInputValue("recrutadorId");
-            const user = interaction.user;
-
-            await Whitelist.upsert({
-                userId: user.id,
-                nome,
-                id,
-                recrutadorNome,
-                recrutadorId,
-            });
-
-            const embed = new EmbedBuilder()
-                .setColor("#00ff00")
-                .setTitle("✅ Novo Usuário Aprovado na Whitelist")
-                .addFields(
-                    { name: "👤 Nome:", value: nome, inline: true },
-                    { name: "🆔 ID:", value: id, inline: true },
-                    { name: "📝 Recrutador:", value: recrutadorNome, inline: true },
-                    { name: "🔢 ID do Recrutador:", value: recrutadorId, inline: true },
-                )
-                .setFooter({ text: `Aprovado por ${user.tag}`, iconURL: user.displayAvatarURL() })
-                .setTimestamp();
-
-            const resultsChannel = interaction.guild.channels.cache.find(channel => channel.name === "resultados-apenas-aprovados");
-            if (resultsChannel) {
-                await resultsChannel.send({ embeds: [embed] });
-            }
-
-            await interaction.followUp({
-                content: "✅ Whitelist enviada com sucesso! Seu resultado foi registrado.",
-                ephemeral: true,
-            });
         }
     } catch (error) {
         console.error("Erro ao processar interação:", error);
