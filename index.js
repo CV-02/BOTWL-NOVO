@@ -57,14 +57,17 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             .filter(role => role.name.toUpperCase() in rolePrefixes)
             .sort((a, b) => b.position - a.position);
 
-        if (roles.size === 0) return;
-
-        // Obtém a sigla do cargo mais alto
-        const highestRole = roles.first();
-        const prefix = rolePrefixes[highestRole.name.toUpperCase()];
+        let newNickname;
         
-        // Define o novo apelido
-        const newNickname = `${prefix} ${newMember.user.username}`;
+        if (roles.size > 0) {
+            // Obtém a sigla do cargo mais alto
+            const highestRole = roles.first();
+            const prefix = rolePrefixes[highestRole.name.toUpperCase()];
+            newNickname = `${prefix} ${newMember.user.username}`;
+        } else {
+            // Remove qualquer sigla se não houver cargos válidos
+            newNickname = newMember.user.username;
+        }
         
         if (newMember.nickname !== newNickname) {
             await newMember.setNickname(newNickname).catch(console.error);
