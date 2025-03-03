@@ -126,6 +126,7 @@ async function keep_alive_loop(channelId) {
 client.on("interactionCreate", async (interaction) => {
     try {
         console.log("Interação recebida:", interaction.customId);
+
         if (interaction.isButton() && interaction.customId === "start_wl") {
             const modal = new ModalBuilder()
                 .setCustomId("wl_form")
@@ -161,13 +162,25 @@ client.on("interactionCreate", async (interaction) => {
                     ),
                 );
             await interaction.showModal(modal);
+        } else if (interaction.isModalSubmit() && interaction.customId === "wl_form") {
+            if (interaction.replied || interaction.deferred) {
+                console.warn("Interação já foi respondida anteriormente.");
+                return;
+            }
+            await interaction.deferReply({ ephemeral: true });
+            await interaction.followUp({
+                content: "✅ Whitelist enviada com sucesso!",
+                ephemeral: true,
+            });
         }
     } catch (error) {
         console.error("Erro ao processar interação:", error);
-        await interaction.reply({
-            content: "❌ Ocorreu um erro ao processar sua whitelist. Tente novamente!",
-            ephemeral: true,
-        });
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+                content: "❌ Ocorreu um erro ao processar sua whitelist. Tente novamente!",
+                ephemeral: true,
+            });
+        }
     }
 });
 
