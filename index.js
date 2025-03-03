@@ -12,11 +12,14 @@ const client = new Client({
 
 // Configuração de cargos e suas siglas
 const rolePrefixes = {
-    "SUBLIDER": "[SUB]",
-    "GERENTE GERAL": "[G.G]",
-    "GERENTE": "[G]",
-    "MODERADOR": "[MOD]",
-    "MEMBRO": "[M]"
+    "LIDER": "👑[Lider]",
+    "SUBLIDER": "🥇[Sub]",
+    "GERENTE GERAL": "🏅[G.G]",
+    "GERENTE DE AÇÃO": "🔫[G.A]",
+    "GERENTE DE VENDAS": "💸[G.V]",
+    "GERENTE DE RECRUTAMENTO": "🧰[G.R]",
+    "RECRUTA": "💎[REC]",
+    "ELITE": "🎯[ELITE]"
 };
 
 client.once("ready", async () => {
