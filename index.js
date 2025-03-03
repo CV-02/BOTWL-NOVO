@@ -53,6 +53,34 @@ const Whitelist = sequelize.define("Whitelist", {
 client.once("ready", async () => {
     await sequelize.sync();
     console.log(`✅ Bot online como ${client.user.tag}`);
+
+    const guild = client.guilds.cache.first();
+    if (!guild) return console.error("Nenhuma guilda encontrada!");
+
+    const channels = {
+        whitelistButton: "whitelist-botao",
+        whitelistRequests: "solicitacoes-de-wl",
+        whitelistResults: "resultados-apenas-aprovados",
+        keepAlive: "keep-alive-log"
+    };
+
+    let createdChannels = {};
+    for (const [key, name] of Object.entries(channels)) {
+        let channel = guild.channels.cache.find(c => c.name === name);
+        if (!channel) {
+            channel = await guild.channels.create({
+                name,
+                type: 0,
+                permissionOverwrites: [
+                    {
+                        id: guild.id,
+                        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages],
+                    },
+                ],
+            });
+        }
+        createdChannels[key] = channel.id;
+    }
 });
 
 client.on("interactionCreate", async (interaction) => {
