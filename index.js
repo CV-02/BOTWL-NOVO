@@ -37,6 +37,11 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             .filter(role => role.id in rolePrefixes)
             .sort((a, b) => b.position - a.position);
 
+        // Verifica se o apelido já segue o padrão, permitindo alterações manuais
+        const currentNickname = newMember.nickname || newMember.user.username;
+        const regex = new RegExp(`^(${Object.values(rolePrefixes).join("|")}) `, "i");
+        const baseName = currentNickname.replace(regex, "").trim();
+        
         let newNickname;
         
         if (roles.size > 0) {
@@ -44,18 +49,17 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             const highestRole = roles.first();
             const prefix = rolePrefixes[highestRole.id];
             
-            newNickname = `${prefix} ${newMember.nickname || newMember.user.username}`;
+            newNickname = `${prefix} ${baseName}`;
             
-            if (newMember.nickname !== newNickname) {
+            if (newNickname !== currentNickname) {
                 await newMember.setNickname(newNickname).catch(console.error);
                 console.log(`🔄 Nick atualizado para: ${newNickname}`);
             }
         } else {
-            // Remove qualquer sigla se não houver cargos válidos, mantendo o nome do servidor
-            const regex = new RegExp(`^(${Object.values(rolePrefixes).join("|")}) `, "i");
-            newNickname = newMember.nickname ? newMember.nickname.replace(regex, "").trim() : newMember.user.username;
+            // Remove qualquer sigla se não houver cargos válidos, mantendo o nome manual
+            newNickname = baseName;
             
-            if (newNickname !== newMember.nickname) {
+            if (newNickname !== currentNickname) {
                 await newMember.setNickname(newNickname).catch(console.error);
                 console.log(`🔄 Sigla removida. Novo nick: ${newNickname}`);
             }
