@@ -40,7 +40,12 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
         // Verifica se o apelido já segue o padrão, permitindo alterações manuais
         const currentNickname = newMember.nickname || newMember.user.username;
         const regex = new RegExp(`^(${Object.values(rolePrefixes).join("|")}) `, "i");
-        const baseName = currentNickname.replace(regex, "").trim();
+        let baseName = currentNickname.replace(regex, "").trim();
+        
+        // Evita sobrescrever o nome manualmente alterado, a menos que haja mudança de cargo
+        if (oldMember.roles.cache.size === newMember.roles.cache.size && oldMember.roles.cache.equals(newMember.roles.cache)) {
+            return;
+        }
         
         let newNickname;
         
