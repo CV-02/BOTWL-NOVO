@@ -55,7 +55,7 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
     try {
         const guild = newMember.guild;
         
-        // Obtém os cargos do usuário ordenados pela hierarquia
+        // Obtém os cargos do usuário ordenados pela posição hierárquica no servidor
         const roles = newMember.roles.cache
             .filter(role => role.name.toUpperCase() in rolePrefixes)
             .sort((a, b) => b.position - a.position);
@@ -67,9 +67,9 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             const highestRole = roles.first();
             const prefix = rolePrefixes[highestRole.name.toUpperCase()];
             
-            // Verifica se o nome já está correto para evitar atualizações desnecessárias
-            if (!newMember.nickname || !newMember.nickname.startsWith(prefix)) {
-                newNickname = `${prefix} ${newMember.user.username}`;
+            newNickname = `${prefix} ${newMember.user.username}`;
+            
+            if (newMember.nickname !== newNickname) {
                 await newMember.setNickname(newNickname).catch(console.error);
                 console.log(`🔄 Nick atualizado para: ${newNickname}`);
             }
@@ -89,4 +89,3 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
 });
 
 client.login(process.env.TOKEN);
-
