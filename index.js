@@ -10,45 +10,22 @@ const client = new Client({
     ]
 });
 
-// Configuração de cargos e suas siglas
+// Configuração de cargos e suas siglas com base nos IDs fornecidos
 const rolePrefixes = {
-    "LIDER": "👑[Lider]",
-    "SUBLIDER": "🥇[Sub]",
-    "GERENTE GERAL": "🏅[G.G]",
-    "GERENTE DE AÇÃO": "🔫[G.A]",
-    "GERENTE DE VENDAS": "💸[G.V]",
-    "GERENTE DE RECRUTAMENTO": "🧰[G.R]",
-    "RECRUTA": "💎[REC]",
-    "ELITE": "🎯[ELITE]"
+    "1336379818781966347": "👑[Lider]",
+    "1336379726675050537": "🥇[Sub]",
+    "1336379564766527582": "🏅[G.G]",
+    "1344093359601619015": "🔫[G.A]",
+    "1341206842776359045": "💸[G.V]",
+    "1336465729016303768": "🧰[G.R]",
+    "1281863970676019253": "💎[REC]",
+    "1336412910582366349": "🎯[ELITE]",
+    "1336410539663949935": "🎯[ELITE]",
+    "1336379079494205521": "[Membro]"
 };
 
 client.once("ready", async () => {
     console.log(`✅ Bot online como ${client.user.tag}`);
-    
-    const guild = client.guilds.cache.first();
-    if (!guild) {
-        console.error("❌ Nenhuma guilda encontrada!");
-        return;
-    }
-
-    // Criar cargos caso não existam
-    for (const roleName of Object.keys(rolePrefixes)) {
-        let role = guild.roles.cache.find(r => r.name.toUpperCase() === roleName);
-        
-        if (!role) {
-            try {
-                role = await guild.roles.create({
-                    name: roleName,
-                    permissions: [],
-                    mentionable: true,
-                    color: "#3498db", // Azul padrão
-                });
-                console.log(`✅ Cargo criado: ${role.name}`);
-            } catch (error) {
-                console.error(`❌ Erro ao criar o cargo ${roleName}:`, error);
-            }
-        }
-    }
 });
 
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
@@ -57,7 +34,7 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
         
         // Obtém os cargos do usuário ordenados pela posição hierárquica no servidor
         const roles = newMember.roles.cache
-            .filter(role => role.name.toUpperCase() in rolePrefixes)
+            .filter(role => role.id in rolePrefixes)
             .sort((a, b) => b.position - a.position);
 
         let newNickname;
@@ -65,7 +42,7 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
         if (roles.size > 0) {
             // Obtém a sigla do cargo mais alto
             const highestRole = roles.first();
-            const prefix = rolePrefixes[highestRole.name.toUpperCase()];
+            const prefix = rolePrefixes[highestRole.id];
             
             newNickname = `${prefix} ${newMember.user.username}`;
             
