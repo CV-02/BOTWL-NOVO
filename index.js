@@ -1,146 +1,77 @@
-import express from "express";
-import { 
-    Client, 
-    GatewayIntentBits, 
-    ActionRowBuilder, 
-    ButtonBuilder, 
-    ButtonStyle, 
-    ModalBuilder, 
-    TextInputBuilder, 
-    TextInputStyle, 
-    PermissionsBitField, 
-    EmbedBuilder
-} from "discord.js";
-import { Sequelize, DataTypes } from "sequelize";
+import { Client, GatewayIntentBits, PermissionsBitField } from "discord.js";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get("/", (req, res) => {
-    res.send("Bot está rodando!");
-});
-
-app.listen(PORT, () => {
-    console.log(`🌍 Servidor HTTP rodando na porta ${PORT}`);
-});
-
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
-    ],
+        GatewayIntentBits.GuildMembers
+    ]
 });
 
-const sequelize = new Sequelize({
-    dialect: "sqlite",
-    storage: "whitelist.db",
-});
-
-const Whitelist = sequelize.define("Whitelist", {
-    userId: { type: DataTypes.STRING, unique: true, primaryKey: true },
-    nome: DataTypes.STRING,
-    id: DataTypes.STRING,
-    recrutadorNome: DataTypes.STRING,
-    recrutadorId: DataTypes.STRING,
-});
+// Configuração de cargos e suas siglas
+const rolePrefixes = {
+    "SUBLIDER": "[SUB]",
+    "GERENTE GERAL": "[G.G]",
+    "GERENTE": "[G]",
+    "MODERADOR": "[MOD]",
+    "MEMBRO": "[M]"
+};
 
 client.once("ready", async () => {
-    await sequelize.sync();
     console.log(`✅ Bot online como ${client.user.tag}`);
+    
+    const guild = client.guilds.cache.first();
+    if (!guild) {
+        console.error("❌ Nenhuma guilda encontrada!");
+        return;
+    }
+
+    // Criar cargos caso não existam
+    for (const roleName of Object.keys(rolePrefixes)) {
+        let role = guild.roles.cache.find(r => r.name.toUpperCase() === roleName);
+        
+        if (!role) {
+            try {
+                role = await guild.roles.create({
+                    name: roleName,
+                    permissions: [],
+                    mentionable: true,
+                    color: "BLUE",
+                });
+                console.log(`✅ Cargo criado: ${role.name}`);
+            } catch (error) {
+                console.error(`❌ Erro ao criar o cargo ${roleName}:`, error);
+            }
+        }
+    }
 });
 
-client.on("interactionCreate", async (interaction) => {
+client.on("guildMemberUpdate", async (oldMember, newMember) => {
     try {
-        console.log("Interação recebida:", interaction.customId);
+        const guild = newMember.guild;
+        
+        // Obtém os cargos do usuário ordenados pela hierarquia
+        const roles = newMember.roles.cache
+            .filter(role => role.name.toUpperCase() in rolePrefixes)
+            .sort((a, b) => b.position - a.position);
 
-        if (interaction.isButton() && interaction.customId === "start_wl") {
-            const modal = new ModalBuilder()
-                .setCustomId("wl_form")
-                .setTitle("Whitelist")
-                .addComponents(
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId("nome")
-                            .setLabel("Digite seu nome")
-                            .setStyle(TextInputStyle.Short)
-                            .setRequired(true),
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId("id")
-                            .setLabel("Digite seu ID")
-                            .setStyle(TextInputStyle.Short)
-                            .setRequired(true),
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId("recrutadorNome")
-                            .setLabel("Nome do Recrutador")
-                            .setStyle(TextInputStyle.Short)
-                            .setRequired(true),
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId("recrutadorId")
-                            .setLabel("ID do Recrutador")
-                            .setStyle(TextInputStyle.Short)
-                            .setRequired(true),
-                    ),
-                );
-            await interaction.showModal(modal);
-        } else if (interaction.isModalSubmit() && interaction.customId === "wl_form") {
-            await interaction.deferReply({ ephemeral: true });
-            
-            const nome = interaction.fields.getTextInputValue("nome");
-            const id = interaction.fields.getTextInputValue("id");
-            const recrutadorNome = interaction.fields.getTextInputValue("recrutadorNome");
-            const recrutadorId = interaction.fields.getTextInputValue("recrutadorId");
-            const user = interaction.user;
+        if (roles.size === 0) return;
 
-            console.log("Dados recebidos:", { nome, id, recrutadorNome, recrutadorId });
-
-            await Whitelist.upsert({
-                userId: user.id,
-                nome,
-                id,
-                recrutadorNome,
-                recrutadorId,
-            });
-
-            const embed = new EmbedBuilder()
-                .setColor("#00ff00")
-                .setTitle("✅ Novo Usuário Aprovado na Whitelist")
-                .addFields(
-                    { name: "👤 Nome:", value: nome, inline: true },
-                    { name: "🆔 ID:", value: id, inline: true },
-                    { name: "📝 Recrutador:", value: recrutadorNome, inline: true },
-                    { name: "🔢 ID do Recrutador:", value: recrutadorId, inline: true },
-                )
-                .setFooter({ text: `Aprovado por ${user.tag}`, iconURL: user.displayAvatarURL() })
-                .setTimestamp();
-
-            const resultsChannel = interaction.guild.channels.cache.find(channel => channel.name === "resultados-apenas-aprovados");
-            if (resultsChannel) {
-                await resultsChannel.send({ embeds: [embed] });
-            }
-
-            await interaction.followUp({
-                content: "✅ Whitelist enviada com sucesso! Seu resultado foi registrado.",
-                ephemeral: true,
-            });
+        // Obtém a sigla do cargo mais alto
+        const highestRole = roles.first();
+        const prefix = rolePrefixes[highestRole.name.toUpperCase()];
+        
+        // Define o novo apelido
+        const newNickname = `${prefix} ${newMember.user.username}`;
+        
+        if (newMember.nickname !== newNickname) {
+            await newMember.setNickname(newNickname).catch(console.error);
+            console.log(`🔄 Nick atualizado para: ${newNickname}`);
         }
     } catch (error) {
-        console.error("Erro ao processar interação:", error);
-        if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({
-                content: "❌ Ocorreu um erro ao processar sua whitelist. Tente novamente!",
-                ephemeral: true,
-            });
-        }
+        console.error("❌ Erro ao atualizar nickname:", error);
     }
 });
 
