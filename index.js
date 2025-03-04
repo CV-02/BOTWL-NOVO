@@ -1,12 +1,10 @@
-import { Client, GatewayIntentBits, EmbedBuilder } from "discord.js";
-import express from "express";
-import dotenv from "dotenv";
+import { Client, GatewayIntentBits, PermissionsBitField, EmbedBuilder } from "discord.js"; import express from "express"; import dotenv from "dotenv";
 
 dotenv.config();
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+const client = new Client({ intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers ] });
 
-// Configuração de cargos e siglas pelo ID
+// Configuração de cargos e suas siglas com base nos IDs fornecidos
 const rolePrefixes = {
     "1336379818781966347": "👑[Líder]",
     "1336379726675050537": "🥇[Sublíder]",
@@ -15,11 +13,13 @@ const rolePrefixes = {
     "1341206842776359045": "💸[Gerente de Vendas]",
     "1336465729016303768": "🧰[Gerente de Recrutamento]",
     "1281863970676019253": "💎[Recrutador]",
-    "1336412910582366349": "🎮[RES.ELITE]",
+    "1336412910582366349": "🎯[Elite]",
     "1336410539663949935": "🎯[Elite]"
 };
 
-const PANEL_CHANNEL_ID = "1336402917779050597"; // Canal do painel de hierarquia
+const PANEL_CHANNEL_ID = "1336402917779050597"; // Canal para exibir a hierarquia dos cargos
+
+// Mapeamento para evitar múltiplas atualizações simultâneas
 const updateQueue = new Map();
 
 client.once("ready", async () => {
@@ -27,13 +27,14 @@ client.once("ready", async () => {
     await updateRolePanel();
 });
 
-// Evento ao mudar cargo
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
     try {
+        const guild = newMember.guild;
+
         if (updateQueue.has(newMember.id)) {
             clearTimeout(updateQueue.get(newMember.id));
         }
-
+        
         updateQueue.set(newMember.id, setTimeout(async () => {
             const roles = newMember.roles.cache
                 .filter(role => role.id in rolePrefixes)
@@ -47,7 +48,7 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             if (roles.size > 0) {
                 const highestRole = roles.first();
                 const prefix = rolePrefixes[highestRole.id];
-
+                
                 if ((prefix.length + newNickname.length + 1) <= 32) {
                     newNickname = `${prefix} ${newNickname}`.trim();
                 } else {
@@ -63,20 +64,19 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             updateQueue.delete(newMember.id);
             await updateRolePanel();
         }, 1000));
-
+        
     } catch (error) {
         console.error("❌ Erro ao atualizar nickname:", error);
     }
 });
 
-// Atualiza o painel de hierarquia
 async function updateRolePanel() {
     try {
-        const channel = await client.channels.fetch(PANEL_CHANNEL_ID);
-        if (!channel) return console.error("❌ Canal do painel não encontrado!");
-
-        const guild = channel.guild;
+        const guild = client.guilds.cache.first();
         if (!guild) return console.error("❌ Servidor não encontrado!");
+
+        const channel = await client.channels.fetch(PANEL_CHANNEL_ID);
+        if (!channel) return console.error("❌ Canal de painel não encontrado!");
 
         const embed = new EmbedBuilder()
             .setTitle("📜 Hierarquia dos Cargos")
@@ -103,11 +103,10 @@ async function updateRolePanel() {
 
         const messages = await channel.messages.fetch();
         if (messages.size > 0) {
-            await messages.first().edit({ embeds: [embed] });
-        } else {
-            await channel.send({ embeds: [embed] });
+            await messages.first().delete().catch(console.error);
         }
-
+        await channel.send({ embeds: [embed] });
+        
         console.log("✅ Painel de hierarquia atualizado!");
     } catch (error) {
         console.error("❌ Erro ao atualizar o painel de hierarquia:", error);
@@ -126,3 +125,4 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
     console.log(`🌍 Servidor HTTP rodando na porta ${PORT}`);
 });
+
