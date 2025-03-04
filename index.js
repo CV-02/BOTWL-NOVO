@@ -13,7 +13,7 @@ const rolePrefixes = {
     "1336379564766527582": "🏅[G.G]",  // Gerente Geral
     "1344093359601619015": "🔫[G.A]",  // Gerente de Ação
     "1341206842776359045": "💸[G.V]",  // Gerente de Vendas
-    "1336465729016303768": "🪰[G.R]",  // Gerente de Recrutamento
+    "1336465729016303768": "🧰[G.R]",  // Gerente de Recrutamento
     "1281863970676019253": "💎[REC]",  // Recrutador
     "1336412910582366349": "🎮[RES.ELITE]",
     "1336410539663949935": "🎯[ELITE]"
