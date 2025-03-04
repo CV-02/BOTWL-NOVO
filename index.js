@@ -6,7 +6,7 @@ dotenv.config();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
 
-// Configuração de cargos e suas siglas
+// Configuração de cargos e siglas
 const rolePrefixes = {
     "1336379818781966347": "👑[Líder]",
     "1336379726675050537": "🥇[Sublíder]",
@@ -31,25 +31,16 @@ const roleNames = {
     "1336410539663949935": "🎯 Elite"
 };
 
-const PANEL_CHANNEL_ID = "1336402917779050597"; // ID do canal da hierarquia
-
-const updateQueue = new Map();
+const PANEL_CHANNEL_ID = "1336402917779050597"; // Canal da hierarquia
 
 client.once("ready", async () => {
     console.log(`✅ Bot online como ${client.user.tag}`);
-    await updateRolePanel();
+    await updateRolePanel(); // Atualiza a hierarquia assim que iniciar
 });
 
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
     try {
-        if (updateQueue.has(newMember.id)) {
-            clearTimeout(updateQueue.get(newMember.id));
-        }
-
-        updateQueue.set(newMember.id, setTimeout(async () => {
-            await updateRolePanel();
-            updateQueue.delete(newMember.id);
-        }, 1000));
+        await updateRolePanel();
     } catch (error) {
         console.error("❌ Erro ao atualizar a hierarquia:", error);
     }
