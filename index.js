@@ -50,9 +50,10 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
         let newNickname = baseName;
         
         if (roles.size > 0) {
-            // Adiciona todas as siglas dos cargos que o usuário possui
-            const prefixes = roles.map(role => rolePrefixes[role.id]).join(" ");
-            newNickname = `${prefixes} ${baseName}`.trim();
+            // Obtém apenas a sigla do cargo mais alto
+            const highestRole = roles.first();
+            const prefix = rolePrefixes[highestRole.id];
+            newNickname = `${prefix} ${baseName}`.trim();
         }
         
         if (newNickname !== currentNickname) {
