@@ -25,7 +25,7 @@ const roleNames = {
     "1336379564766527582": "🏅 Gerente Geral",
     "1344093359601619015": "🔫 Gerente de Ação",
     "1341206842776359045": "💸 Gerente de Vendas",
-    "1336465729016303768": "🪰 Gerente de Recrutamento",
+    "1336465729016303768": "🧰 Gerente de Recrutamento",
     "1281863970676019253": "💎 Recrutador",
     "1336412910582366349": "🎮 Responsável Elite",
     "1336410539663949935": "🎯 Elite"
