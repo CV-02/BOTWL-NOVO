@@ -16,7 +16,7 @@ const rolePrefixes = {
     "1336465729016303768": "🧰[G.R]",
     "1281863970676019253": "💎[REC]",
     "1336412910582366349": "🎮[RES.ELITE]",
-    "1336410539663949935": "🎯[ELITE]" // 🎯 agora aparece corretamente!
+    "1336410539663949935": "🎯[ELITE]"
 };
 
 const PANEL_CHANNEL_ID = "1336402917779050597"; // Canal da hierarquia
@@ -55,20 +55,20 @@ async function updateRolePanel() {
             const role = await guild.roles.fetch(roleId);
             if (!role) continue;
 
-            // Filtra membros para evitar duplicações
+            // Busca os membros que possuem esse cargo
             const members = role.members
                 .filter(member => {
-                    if (assignedMembers.has(member.id)) return false;
+                    if (assignedMembers.has(member.id)) return false; // Evita duplicação
                     assignedMembers.add(member.id);
                     return true;
                 })
-                .map(member => `👤 <@${member.id}>`)
+                .map(member => `${rolePrefix} 👤 <@${member.id}>`) // Nome do membro com emoji e sigla
                 .join("\n") || "*Nenhum membro*";
 
             hierarchyText += `**${rolePrefix}**\n${members}\n\n`;
         }
 
-        // Verifica se já há uma mensagem fixa no canal
+        // Busca mensagens no canal para reutilizar a existente
         const messages = await channel.messages.fetch({ limit: 10 });
         if (!hierarchyMessageId) {
             const existingMessage = messages.find(msg => msg.author.id === client.user.id);
@@ -79,15 +79,21 @@ async function updateRolePanel() {
 
         if (hierarchyMessageId) {
             // Edita a mensagem existente para manter o painel fixo
-            const msg = await channel.messages.fetch(hierarchyMessageId);
-            await msg.edit(hierarchyText);
+            try {
+                const msg = await channel.messages.fetch(hierarchyMessageId);
+                await msg.edit(hierarchyText);
+            } catch (error) {
+                console.error("❌ Erro ao editar a mensagem, criando uma nova...");
+                const newMessage = await channel.send(hierarchyText);
+                hierarchyMessageId = newMessage.id;
+            }
         } else {
             // Envia uma nova mensagem e salva o ID
             const newMessage = await channel.send(hierarchyText);
             hierarchyMessageId = newMessage.id;
         }
 
-        console.log("✅ Hierarquia atualizada!");
+        console.log("✅ Hierarquia atualizada com sucesso!");
     } catch (error) {
         console.error("❌ Erro ao atualizar a hierarquia:", error);
     }
