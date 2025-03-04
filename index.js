@@ -1,4 +1,5 @@
 import { Client, GatewayIntentBits, PermissionsBitField } from "discord.js";
+import express from "express";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -72,3 +73,15 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
 });
 
 client.login(process.env.TOKEN);
+
+// Servidor Express para manter o bot online
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get("/", (req, res) => {
+    res.send("Bot está rodando!");
+});
+
+app.listen(PORT, () => {
+    console.log(`🌍 Servidor HTTP rodando na porta ${PORT}`);
+});
