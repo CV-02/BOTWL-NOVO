@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, PermissionsBitField, EmbedBuilder, Colors } from "discord.js";
+import { Client, GatewayIntentBits, PermissionsBitField, EmbedBuilder } from "discord.js";
 import express from "express";
 import dotenv from "dotenv";
 
@@ -93,7 +93,7 @@ async function updateRolePanel() {
         const embed = new EmbedBuilder()
             .setTitle("📜 Hierarquia dos Cargos")
             .setDescription("Aqui está a hierarquia da facção e seus membros:")
-            .setColor(Colors.Blue)
+            .setColor(0x0000FF) // Azul em formato hexadecimal para evitar erro de conversão
             .setFooter({ text: "Facção RP" });
 
         for (const [roleId, roleName] of Object.entries(rolePrefixes)) {
@@ -129,4 +129,3 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
     console.log(`🌍 Servidor HTTP rodando na porta ${PORT}`);
 });
-
