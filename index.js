@@ -38,7 +38,7 @@ client.once("ready", async () => {
     await updateRolePanel(); // Atualiza a hierarquia assim que iniciar
 });
 
-client.on("guildMemberUpdate", async (oldMember, newMember) => {
+client.on("guildMemberUpdate", async () => {
     try {
         await updateRolePanel();
     } catch (error) {
@@ -63,11 +63,12 @@ async function updateRolePanel() {
             if (!role) continue;
 
             const members = role.members
-                .filter(member => !assignedMembers.has(member.id))
-                .map(member => {
+                .filter(member => {
+                    if (assignedMembers.has(member.id)) return false;
                     assignedMembers.add(member.id);
-                    return `👤 <@${member.id}>`;
+                    return true;
                 })
+                .map(member => `👤 <@${member.id}>`)
                 .join("\n") || "*Nenhum membro*";
 
             hierarchyText += `**${roleName}**\n${members}\n\n`;
