@@ -37,10 +37,9 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             .filter(role => role.id in rolePrefixes)
             .sort((a, b) => b.position - a.position);
 
-        // Obtém o apelido atual e remove todas as siglas antigas
+        // Obtém o apelido atual e remove apenas as siglas dentro de colchetes [], mantendo emojis personalizados
         let currentNickname = newMember.nickname || newMember.user.username;
-        const regex = new RegExp(`^(${Object.values(rolePrefixes).join("| ")})+`, "g");
-        let baseName = currentNickname.replace(regex, "").trim();
+        let baseName = currentNickname.replace(/(\[[^\]]*\])/g, "").trim();
         
         // Evita mudanças repetitivas e respeita alterações manuais
         if (oldMember.roles.cache.equals(newMember.roles.cache)) {
@@ -50,18 +49,15 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
         let newNickname = baseName;
         
         if (roles.size > 0) {
-            // Obtém a sigla do cargo mais alto e aplica antes do nome
+            // Obtém a sigla do cargo mais alto e aplica antes do último colchete encontrado
             const highestRole = roles.first();
             const prefix = rolePrefixes[highestRole.id];
             
-            // Remove siglas duplicadas e anteriores
-            newNickname = baseName.replace(new RegExp(`(${Object.values(rolePrefixes).join("| ")})`, "g"), "").trim();
-            
             // Garante que o nome completo não ultrapasse 32 caracteres
             if ((prefix.length + newNickname.length + 1) <= 32) {
-                newNickname = `${prefix} ${newNickname}`.trim();
+                newNickname = newNickname.replace(/(\[[^\]]*\])/, `${prefix}$1`).trim();
             } else {
-                newNickname = `${prefix} ${newNickname.substring(0, 32 - prefix.length - 1)}`.trim();
+                newNickname = newNickname.replace(/(\[[^\]]*\])/, `${prefix}$1`).substring(0, 32).trim();
             }
         }
         
@@ -87,3 +83,4 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
     console.log(`🌍 Servidor HTTP rodando na porta ${PORT}`);
 });
+
