@@ -74,6 +74,7 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             }
             
             updateQueue.delete(newMember.id);
+            await updateRolePanel();
         }, 1000)); // Tempo de espera de 1 segundo para evitar conflitos de atualização rápida
         
     } catch (error) {
@@ -83,17 +84,24 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
 
 async function updateRolePanel() {
     try {
+        const guild = client.guilds.cache.first();
+        if (!guild) return console.error("❌ Servidor não encontrado!");
+
         const channel = await client.channels.fetch(PANEL_CHANNEL_ID);
         if (!channel) return console.error("❌ Canal de painel não encontrado!");
 
         const embed = new EmbedBuilder()
             .setTitle("📜 Hierarquia dos Cargos")
-            .setDescription("Aqui está a hierarquia da facção:")
+            .setDescription("Aqui está a hierarquia da facção e seus membros:")
             .setColor("BLUE")
             .setFooter({ text: "Facção RP" });
 
         for (const [roleId, roleName] of Object.entries(rolePrefixes)) {
-            embed.addFields({ name: roleName, value: `<@&${roleId}>`, inline: true });
+            const role = guild.roles.cache.get(roleId);
+            if (!role) continue;
+
+            const members = role.members.map(member => `<@${member.id}>`).join("\n") || "Nenhum membro";
+            embed.addFields({ name: roleName, value: members, inline: false });
         }
 
         const messages = await channel.messages.fetch();
