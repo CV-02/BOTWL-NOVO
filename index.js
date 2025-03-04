@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.Guilds] });
 
 // Configuração de cargos e siglas
 const rolePrefixes = {
@@ -27,16 +27,41 @@ client.once("ready", async () => {
     await updateRolePanel(); // Atualiza a hierarquia assim que iniciar
 });
 
-// Atualiza a hierarquia sempre que um membro ganha ou perde um cargo
-client.on("guildMemberUpdate", async () => {
+// Monitora mudanças nos cargos dos membros
+client.on("guildMemberUpdate", async (oldMember, newMember) => {
     try {
         await updateRolePanel();
+        await updateMemberNickname(oldMember, newMember);
     } catch (error) {
-        console.error("❌ Erro ao atualizar a hierarquia:", error);
+        console.error("❌ Erro ao atualizar:", error);
     }
 });
 
-// Função para atualizar a hierarquia da facção
+// Atualiza o nome do membro com a sigla do cargo
+async function updateMemberNickname(oldMember, newMember) {
+    try {
+        for (const [roleId, prefix] of Object.entries(rolePrefixes)) {
+            const hadRole = oldMember.roles.cache.has(roleId);
+            const hasRoleNow = newMember.roles.cache.has(roleId);
+            const cleanName = newMember.displayName.replace(/^[^\s]+\s/, ""); // Remove qualquer prefixo anterior
+
+            if (hasRoleNow && !hadRole) {
+                // Adiciona a sigla no nome
+                const newNickname = `${prefix} ${cleanName}`;
+                await newMember.setNickname(newNickname).catch(console.error);
+                console.log(`✅ Nome atualizado: ${newNickname}`);
+            } else if (!hasRoleNow && hadRole) {
+                // Remove a sigla quando o cargo é perdido
+                await newMember.setNickname(cleanName).catch(console.error);
+                console.log(`✅ Nome restaurado: ${cleanName}`);
+            }
+        }
+    } catch (error) {
+        console.error("❌ Erro ao atualizar nome do membro:", error);
+    }
+}
+
+// Atualiza o painel da hierarquia
 async function updateRolePanel() {
     try {
         const guild = client.guilds.cache.first();
@@ -55,14 +80,13 @@ async function updateRolePanel() {
             const role = await guild.roles.fetch(roleId);
             if (!role) continue;
 
-            // Busca os membros que possuem esse cargo
             const members = role.members
                 .filter(member => {
-                    if (assignedMembers.has(member.id)) return false; // Evita duplicação
+                    if (assignedMembers.has(member.id)) return false;
                     assignedMembers.add(member.id);
                     return true;
                 })
-                .map(member => `${rolePrefix} 👤 <@${member.id}>`) // Nome do membro com emoji e sigla
+                .map(member => `👤 <@${member.id}>`)
                 .join("\n") || "*Nenhum membro*";
 
             hierarchyText += `**${rolePrefix}**\n${members}\n\n`;
@@ -78,7 +102,6 @@ async function updateRolePanel() {
         }
 
         if (hierarchyMessageId) {
-            // Edita a mensagem existente para manter o painel fixo
             try {
                 const msg = await channel.messages.fetch(hierarchyMessageId);
                 await msg.edit(hierarchyText);
@@ -88,7 +111,6 @@ async function updateRolePanel() {
                 hierarchyMessageId = newMessage.id;
             }
         } else {
-            // Envia uma nova mensagem e salva o ID
             const newMessage = await channel.send(hierarchyText);
             hierarchyMessageId = newMessage.id;
         }
