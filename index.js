@@ -37,37 +37,27 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             .filter(role => role.id in rolePrefixes)
             .sort((a, b) => b.position - a.position);
 
-        // Verifica se o apelido já segue o padrão, permitindo alterações manuais
-        const currentNickname = newMember.nickname || newMember.user.username;
-        const regex = new RegExp(`^(${Object.values(rolePrefixes).join("|")}) `, "i");
+        // Obtém o apelido atual e remove siglas antigas
+        let currentNickname = newMember.nickname || newMember.user.username;
+        const regex = new RegExp(`(${Object.values(rolePrefixes).join("|")})`, "g");
         let baseName = currentNickname.replace(regex, "").trim();
         
-        // Evita sobrescrever o nome manualmente alterado, a menos que haja mudança de cargo
-        if (oldMember.roles.cache.size === newMember.roles.cache.size && oldMember.roles.cache.equals(newMember.roles.cache)) {
+        // Evita mudanças repetitivas e respeita alterações manuais
+        if (oldMember.roles.cache.equals(newMember.roles.cache)) {
             return;
         }
         
-        let newNickname;
+        let newNickname = baseName;
         
         if (roles.size > 0) {
-            // Obtém a sigla do cargo mais alto
-            const highestRole = roles.first();
-            const prefix = rolePrefixes[highestRole.id];
-            
-            newNickname = `${prefix} ${baseName}`;
-            
-            if (newNickname !== currentNickname) {
-                await newMember.setNickname(newNickname).catch(console.error);
-                console.log(`🔄 Nick atualizado para: ${newNickname}`);
-            }
-        } else {
-            // Remove qualquer sigla se não houver cargos válidos, mantendo o nome manual
-            newNickname = baseName;
-            
-            if (newNickname !== currentNickname) {
-                await newMember.setNickname(newNickname).catch(console.error);
-                console.log(`🔄 Sigla removida. Novo nick: ${newNickname}`);
-            }
+            // Adiciona todas as siglas dos cargos que o usuário possui
+            const prefixes = roles.map(role => rolePrefixes[role.id]).join(" ");
+            newNickname = `${prefixes} ${baseName}`.trim();
+        }
+        
+        if (newNickname !== currentNickname) {
+            await newMember.setNickname(newNickname).catch(console.error);
+            console.log(`🔄 Nick atualizado para: ${newNickname}`);
         }
     } catch (error) {
         console.error("❌ Erro ao atualizar nickname:", error);
