@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, PermissionsBitField } from "discord.js";
+import { Client, GatewayIntentBits, PermissionsBitField, EmbedBuilder } from "discord.js";
 import express from "express";
 import dotenv from "dotenv";
 
@@ -24,11 +24,14 @@ const rolePrefixes = {
     "1336410539663949935": "🎯[ELITE]"
 };
 
+const PANEL_CHANNEL_ID = "1336402917779050597"; // Canal para exibir a hierarquia dos cargos
+
 // Mapeamento para evitar múltiplas atualizações simultâneas
 const updateQueue = new Map();
 
 client.once("ready", async () => {
     console.log(`✅ Bot online como ${client.user.tag}`);
+    await updateRolePanel();
 });
 
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
@@ -77,6 +80,33 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
         console.error("❌ Erro ao atualizar nickname:", error);
     }
 });
+
+async function updateRolePanel() {
+    try {
+        const channel = await client.channels.fetch(PANEL_CHANNEL_ID);
+        if (!channel) return console.error("❌ Canal de painel não encontrado!");
+
+        const embed = new EmbedBuilder()
+            .setTitle("📜 Hierarquia dos Cargos")
+            .setDescription("Aqui está a hierarquia da facção:")
+            .setColor("BLUE")
+            .setFooter({ text: "Facção RP" });
+
+        for (const [roleId, roleName] of Object.entries(rolePrefixes)) {
+            embed.addFields({ name: roleName, value: `<@&${roleId}>`, inline: true });
+        }
+
+        const messages = await channel.messages.fetch();
+        if (messages.size > 0) {
+            await messages.first().edit({ embeds: [embed] });
+        } else {
+            await channel.send({ embeds: [embed] });
+        }
+        console.log("✅ Painel de hierarquia atualizado!");
+    } catch (error) {
+        console.error("❌ Erro ao atualizar o painel de hierarquia:", error);
+    }
+}
 
 client.login(process.env.TOKEN);
 
