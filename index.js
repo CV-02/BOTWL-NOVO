@@ -21,8 +21,7 @@ const rolePrefixes = {
     "1336465729016303768": "🧰[G.R]",
     "1281863970676019253": "💎[REC]",
     "1336412910582366349": "🎯[ELITE]",
-    "1336410539663949935": "🎯[ELITE]",
-    "1336379079494205521": "[Membro]"
+    "1336410539663949935": "🎯[ELITE]"
 };
 
 client.once("ready", async () => {
@@ -55,11 +54,14 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             const highestRole = roles.first();
             const prefix = rolePrefixes[highestRole.id];
             
+            // Remove siglas duplicadas e anteriores
+            newNickname = baseName.replace(new RegExp(`(${Object.values(rolePrefixes).join("| ")})`, "g"), "").trim();
+            
             // Garante que o nome completo não ultrapasse 32 caracteres
-            if ((prefix.length + baseName.length + 1) <= 32) {
-                newNickname = `${prefix} ${baseName}`.trim();
+            if ((prefix.length + newNickname.length + 1) <= 32) {
+                newNickname = `${prefix} ${newNickname}`.trim();
             } else {
-                newNickname = `${prefix} ${baseName.substring(0, 32 - prefix.length - 1)}`.trim();
+                newNickname = `${prefix} ${newNickname.substring(0, 32 - prefix.length - 1)}`.trim();
             }
         }
         
