@@ -12,22 +12,20 @@ const client = new Client({
 });
 
 // Configuração de cargos e suas siglas com base nos IDs fornecidos
-const rolePrefixes = {
-    "1336379818781966347": "👑[Lider]",
-    "1336379726675050537": "🥇[Sub]",
-    "1336379564766527582": "🏅[G.G]",
-    "1344093359601619015": "🔫[G.A]",
-    "1341206842776359045": "💸[G.V]",
-    "1336465729016303768": "🧰[G.R]",
-    "1281863970676019253": "💎[REC]",
-    "1336412910582366349": "🎯[ELITE]",
-    "1336410539663949935": "🎯[ELITE]"
-};
+const roleHierarchy = [
+    { id: "1336379818781966347", name: "👑[Lider]" },
+    { id: "1336379726675050537", name: "🥇[Sub]" },
+    { id: "1336379564766527582", name: "🏅[G.G]" },
+    { id: "1344093359601619015", name: "🔫[G.A]" },
+    { id: "1341206842776359045", name: "💸[G.V]" },
+    { id: "1336465729016303768", name: "🧰[G.R]" },
+    { id: "1281863970676019253", name: "💎[REC]" },
+    { id: "1336412910582366349", name: "🎯[ELITE]" },
+    { id: "1336410539663949935", name: "🎯[ELITE]" }
+];
 
-const PANEL_CHANNEL_ID = "1336402917779050597"; // Canal para exibir a hierarquia dos cargos
-
-// Mapeamento para evitar múltiplas atualizações simultâneas
-const updateQueue = new Map();
+const PANEL_CHANNEL_ID = "1336402917779050597"; // Canal de hierarquia
+const updateQueue = new Map(); // Evita atualizações consecutivas
 
 client.once("ready", async () => {
     console.log(`✅ Bot online como ${client.user.tag}`);
@@ -36,34 +34,26 @@ client.once("ready", async () => {
 
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
     try {
-        const guild = newMember.guild;
-
         if (updateQueue.has(newMember.id)) {
             clearTimeout(updateQueue.get(newMember.id));
         }
 
         updateQueue.set(newMember.id, setTimeout(async () => {
-            const roles = newMember.roles.cache
-                .filter(role => role.id in rolePrefixes)
-                .sort((a, b) => b.position - a.position);
+            const roles = newMember.roles.cache.map(role => role.id);
+            let newNickname = newMember.user.username;
 
-            let currentNickname = newMember.nickname || newMember.user.username;
-            let baseName = currentNickname.replace(/([\p{Emoji}\p{Extended_Pictographic}]?\[[^\]]*\])/gu, "").trim();
-
-            let newNickname = baseName;
-
-            if (roles.size > 0) {
-                const highestRole = roles.first();
-                const prefix = rolePrefixes[highestRole.id];
-
-                if ((prefix.length + newNickname.length + 1) <= 32) {
-                    newNickname = `${prefix} ${newNickname}`.trim();
-                } else {
-                    newNickname = `${prefix} ${newNickname.substring(0, 32 - prefix.length - 1)}`.trim();
+            for (const role of roleHierarchy) {
+                if (roles.includes(role.id)) {
+                    newNickname = `${role.name} ${newNickname}`;
+                    break;
                 }
             }
 
-            if (newNickname !== currentNickname) {
+            if (newNickname.length > 32) {
+                newNickname = newNickname.substring(0, 32);
+            }
+
+            if (newNickname !== newMember.nickname) {
                 await newMember.setNickname(newNickname).catch(console.error);
                 console.log(`🔄 Nick atualizado para: ${newNickname}`);
             }
@@ -91,21 +81,18 @@ async function updateRolePanel() {
             .setColor(0x0000FF)
             .setFooter({ text: "Facção RP" });
 
-        let assignedMembers = new Set();
+        const allMembers = await guild.members.fetch();
+        const assignedMembers = new Set();
 
-        for (const [roleId, roleName] of Object.entries(rolePrefixes)) {
-            const role = guild.roles.cache.get(roleId);
-            if (!role) continue;
+        for (const role of roleHierarchy) {
+            const membersInRole = allMembers.filter(member => 
+                member.roles.cache.has(role.id) && !assignedMembers.has(member.id)
+            );
 
-            const members = role.members
-                .filter(member => !assignedMembers.has(member.id))
-                .map(member => {
-                    assignedMembers.add(member.id);
-                    return `<@${member.id}>`;
-                })
-                .join("\n") || "Nenhum membro";
+            membersInRole.forEach(member => assignedMembers.add(member.id));
 
-            embed.addFields({ name: roleName, value: members, inline: false });
+            const memberList = membersInRole.map(member => `<@${member.id}>`).join("\n") || "Nenhum membro";
+            embed.addFields({ name: role.name, value: memberList, inline: false });
         }
 
         const messages = await channel.messages.fetch();
