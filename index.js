@@ -1,31 +1,26 @@
-import { Client, GatewayIntentBits, PermissionsBitField, EmbedBuilder } from "discord.js";
-import express from "express";
-import dotenv from "dotenv";
+import { Client, GatewayIntentBits, PermissionsBitField, EmbedBuilder } from "discord.js"; import express from "express"; import dotenv from "dotenv";
 
 dotenv.config();
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers
-    ]
-});
+const client = new Client({ intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers ] });
 
 // Configuração de cargos e suas siglas com base nos IDs fornecidos
-const roleHierarchy = [
-    { id: "1336379818781966347", name: "👑[Lider]" },
-    { id: "1336379726675050537", name: "🥇[Sub]" },
-    { id: "1336379564766527582", name: "🏅[G.G]" },
-    { id: "1344093359601619015", name: "🔫[G.A]" },
-    { id: "1341206842776359045", name: "💸[G.V]" },
-    { id: "1336465729016303768", name: "🧰[G.R]" },
-    { id: "1281863970676019253", name: "💎[REC]" },
-    { id: "1336412910582366349", name: "🎯[ELITE]" },
-    { id: "1336410539663949935", name: "🎯[ELITE]" }
-];
+const rolePrefixes = {
+    "1336379818781966347": "👑[Líder]",
+    "1336379726675050537": "🥇[Sublíder]",
+    "1336379564766527582": "🏅[Gerente Geral]",
+    "1344093359601619015": "🔫[Gerente de Ação]",
+    "1341206842776359045": "💸[Gerente de Vendas]",
+    "1336465729016303768": "🧰[Gerente de Recrutamento]",
+    "1281863970676019253": "💎[Recrutador]",
+    "1336412910582366349": "🎯[Elite]",
+    "1336410539663949935": "🎯[Elite]"
+};
 
-const PANEL_CHANNEL_ID = "1336402917779050597"; // Canal de hierarquia
-const updateQueue = new Map(); // Evita atualizações consecutivas
+const PANEL_CHANNEL_ID = "1336402917779050597"; // Canal para exibir a hierarquia dos cargos
+
+// Mapeamento para evitar múltiplas atualizações simultâneas
+const updateQueue = new Map();
 
 client.once("ready", async () => {
     console.log(`✅ Bot online como ${client.user.tag}`);
@@ -34,34 +29,42 @@ client.once("ready", async () => {
 
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
     try {
+        const guild = newMember.guild;
+
         if (updateQueue.has(newMember.id)) {
             clearTimeout(updateQueue.get(newMember.id));
         }
-
+        
         updateQueue.set(newMember.id, setTimeout(async () => {
-            const roles = newMember.roles.cache.map(role => role.id);
-            let newNickname = newMember.user.username;
+            const roles = newMember.roles.cache
+                .filter(role => role.id in rolePrefixes)
+                .sort((a, b) => b.position - a.position);
 
-            for (const role of roleHierarchy) {
-                if (roles.includes(role.id)) {
-                    newNickname = `${role.name} ${newNickname}`;
-                    break;
+            let currentNickname = newMember.nickname || newMember.user.username;
+            let baseName = currentNickname.replace(/([\p{Emoji}\p{Extended_Pictographic}]?\[[^\]]*\])/gu, "").trim();
+            
+            let newNickname = baseName;
+            
+            if (roles.size > 0) {
+                const highestRole = roles.first();
+                const prefix = rolePrefixes[highestRole.id];
+                
+                if ((prefix.length + newNickname.length + 1) <= 32) {
+                    newNickname = `${prefix} ${newNickname}`.trim();
+                } else {
+                    newNickname = `${prefix} ${newNickname.substring(0, 32 - prefix.length - 1)}`.trim();
                 }
             }
-
-            if (newNickname.length > 32) {
-                newNickname = newNickname.substring(0, 32);
-            }
-
-            if (newNickname !== newMember.nickname) {
+            
+            if (newNickname !== currentNickname) {
                 await newMember.setNickname(newNickname).catch(console.error);
                 console.log(`🔄 Nick atualizado para: ${newNickname}`);
             }
-
+            
             updateQueue.delete(newMember.id);
             await updateRolePanel();
         }, 1000));
-
+        
     } catch (error) {
         console.error("❌ Erro ao atualizar nickname:", error);
     }
@@ -81,18 +84,21 @@ async function updateRolePanel() {
             .setColor(0x0000FF)
             .setFooter({ text: "Facção RP" });
 
-        const allMembers = await guild.members.fetch();
-        const assignedMembers = new Set();
+        let assignedMembers = new Set();
 
-        for (const role of roleHierarchy) {
-            const membersInRole = allMembers.filter(member => 
-                member.roles.cache.has(role.id) && !assignedMembers.has(member.id)
-            );
+        for (const [roleId, roleName] of Object.entries(rolePrefixes)) {
+            const role = guild.roles.cache.get(roleId);
+            if (!role) continue;
 
-            membersInRole.forEach(member => assignedMembers.add(member.id));
+            const members = role.members
+                .filter(member => !assignedMembers.has(member.id))
+                .map(member => {
+                    assignedMembers.add(member.id);
+                    return `<@${member.id}>`;
+                })
+                .join("\n") || "Nenhum membro";
 
-            const memberList = membersInRole.map(member => `<@${member.id}>`).join("\n") || "Nenhum membro";
-            embed.addFields({ name: role.name, value: memberList, inline: false });
+            embed.addFields({ name: roleName, value: members, inline: false });
         }
 
         const messages = await channel.messages.fetch();
@@ -100,7 +106,7 @@ async function updateRolePanel() {
             await messages.first().delete().catch(console.error);
         }
         await channel.send({ embeds: [embed] });
-
+        
         console.log("✅ Painel de hierarquia atualizado!");
     } catch (error) {
         console.error("❌ Erro ao atualizar o painel de hierarquia:", error);
@@ -119,3 +125,4 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
     console.log(`🌍 Servidor HTTP rodando na porta ${PORT}`);
 });
+
