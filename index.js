@@ -24,6 +24,9 @@ const rolePrefixes = {
     "1336410539663949935": "🎯[ELITE]"
 };
 
+// Mapeamento para evitar múltiplas atualizações simultâneas
+const updateQueue = new Map();
+
 client.once("ready", async () => {
     console.log(`✅ Bot online como ${client.user.tag}`);
 });
@@ -32,39 +35,44 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
     try {
         const guild = newMember.guild;
         
-        // Obtém os cargos do usuário ordenados pela posição hierárquica no servidor
-        const roles = newMember.roles.cache
-            .filter(role => role.id in rolePrefixes)
-            .sort((a, b) => b.position - a.position);
+        // Se já houver uma atualização em andamento para este membro, cancela a anterior
+        if (updateQueue.has(newMember.id)) {
+            clearTimeout(updateQueue.get(newMember.id));
+        }
+        
+        updateQueue.set(newMember.id, setTimeout(async () => {
+            // Obtém os cargos do usuário ordenados pela posição hierárquica no servidor
+            const roles = newMember.roles.cache
+                .filter(role => role.id in rolePrefixes)
+                .sort((a, b) => b.position - a.position);
 
-        // Obtém o apelido atual e remove qualquer sigla de cargo antiga com emojis e colchetes []
-        let currentNickname = newMember.nickname || newMember.user.username;
-        let baseName = currentNickname.replace(/([\p{Emoji}\p{Extended_Pictographic}]?\[[^\]]*\])/gu, "").trim();
-        
-        // Evita mudanças repetitivas e respeita alterações manuais
-        if (oldMember.roles.cache.equals(newMember.roles.cache)) {
-            return;
-        }
-        
-        let newNickname = baseName;
-        
-        if (roles.size > 0) {
-            // Obtém a sigla do cargo mais alto e aplica antes do último colchete encontrado
-            const highestRole = roles.first();
-            const prefix = rolePrefixes[highestRole.id];
+            // Obtém o apelido atual e remove qualquer sigla de cargo antiga com emojis e colchetes []
+            let currentNickname = newMember.nickname || newMember.user.username;
+            let baseName = currentNickname.replace(/([\p{Emoji}\p{Extended_Pictographic}]?\[[^\]]*\])/gu, "").trim();
             
-            // Garante que o nome completo não ultrapasse 32 caracteres
-            if ((prefix.length + newNickname.length + 1) <= 32) {
-                newNickname = `${prefix} ${newNickname}`.trim();
-            } else {
-                newNickname = `${prefix} ${newNickname.substring(0, 32 - prefix.length - 1)}`.trim();
+            let newNickname = baseName;
+            
+            if (roles.size > 0) {
+                // Obtém a sigla do cargo mais alto e aplica antes do último colchete encontrado
+                const highestRole = roles.first();
+                const prefix = rolePrefixes[highestRole.id];
+                
+                // Garante que o nome completo não ultrapasse 32 caracteres
+                if ((prefix.length + newNickname.length + 1) <= 32) {
+                    newNickname = `${prefix} ${newNickname}`.trim();
+                } else {
+                    newNickname = `${prefix} ${newNickname.substring(0, 32 - prefix.length - 1)}`.trim();
+                }
             }
-        }
+            
+            if (newNickname !== currentNickname) {
+                await newMember.setNickname(newNickname).catch(console.error);
+                console.log(`🔄 Nick atualizado para: ${newNickname}`);
+            }
+            
+            updateQueue.delete(newMember.id);
+        }, 1000)); // Tempo de espera de 1 segundo para evitar conflitos de atualização rápida
         
-        if (newNickname !== currentNickname) {
-            await newMember.setNickname(newNickname).catch(console.error);
-            console.log(`🔄 Nick atualizado para: ${newNickname}`);
-        }
     } catch (error) {
         console.error("❌ Erro ao atualizar nickname:", error);
     }
