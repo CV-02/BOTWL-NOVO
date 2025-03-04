@@ -40,7 +40,7 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
 
         // Obtém o apelido atual e remove todas as siglas antigas
         let currentNickname = newMember.nickname || newMember.user.username;
-        const regex = new RegExp(`(${Object.values(rolePrefixes).join("|")})`, "g");
+        const regex = new RegExp(`^(${Object.values(rolePrefixes).join("| ")})+`, "g");
         let baseName = currentNickname.replace(regex, "").trim();
         
         // Evita mudanças repetitivas e respeita alterações manuais
@@ -55,14 +55,11 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             const highestRole = roles.first();
             const prefix = rolePrefixes[highestRole.id];
             
-            // Garante que não haja duplicação de siglas
-            if (!baseName.startsWith(prefix)) {
-                // Garante que o nome completo não ultrapasse 32 caracteres
-                if ((prefix.length + baseName.length + 1) <= 32) {
-                    newNickname = `${prefix} ${baseName}`.trim();
-                } else {
-                    newNickname = `${prefix} ${baseName.substring(0, 32 - prefix.length - 1)}`.trim();
-                }
+            // Garante que o nome completo não ultrapasse 32 caracteres
+            if ((prefix.length + baseName.length + 1) <= 32) {
+                newNickname = `${prefix} ${baseName}`.trim();
+            } else {
+                newNickname = `${prefix} ${baseName.substring(0, 32 - prefix.length - 1)}`.trim();
             }
         }
         
