@@ -4,9 +4,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+const client = new Client({ intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers ] });
 
-// Configuração de cargos e siglas para os apelidos
+// Configuração de cargos e suas siglas com base nos IDs fornecidos
 const rolePrefixes = {
     "1336379818781966347": "👑[Líder]",
     "1336379726675050537": "🥇[Sublíder]",
@@ -33,7 +33,7 @@ const roleNames = {
 
 const PANEL_CHANNEL_ID = "1336402917779050597"; // Canal do painel de hierarquia
 
-// Map para evitar múltiplas atualizações simultâneas
+// Mapeamento para evitar múltiplas atualizações simultâneas
 const updateQueue = new Map();
 
 client.once("ready", async () => {
@@ -48,7 +48,7 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
         if (updateQueue.has(newMember.id)) {
             clearTimeout(updateQueue.get(newMember.id));
         }
-
+        
         updateQueue.set(newMember.id, setTimeout(async () => {
             const roles = newMember.roles.cache
                 .filter(role => role.id in rolePrefixes)
@@ -56,29 +56,29 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
 
             let currentNickname = newMember.nickname || newMember.user.username;
             let baseName = currentNickname.replace(/([\p{Emoji}\p{Extended_Pictographic}]?\[[^\]]*\])/gu, "").trim();
-
+            
             let newNickname = baseName;
-
+            
             if (roles.size > 0) {
                 const highestRole = roles.first();
                 const prefix = rolePrefixes[highestRole.id];
-
+                
                 if ((prefix.length + newNickname.length + 1) <= 32) {
                     newNickname = `${prefix} ${newNickname}`.trim();
                 } else {
                     newNickname = `${prefix} ${newNickname.substring(0, 32 - prefix.length - 1)}`.trim();
                 }
             }
-
+            
             if (newNickname !== currentNickname) {
                 await newMember.setNickname(newNickname).catch(console.error);
                 console.log(`🔄 Nick atualizado para: ${newNickname}`);
             }
-
+            
             updateQueue.delete(newMember.id);
             await updateRolePanel();
         }, 1000));
-
+        
     } catch (error) {
         console.error("❌ Erro ao atualizar nickname:", error);
     }
@@ -101,7 +101,7 @@ async function updateRolePanel() {
         let assignedMembers = new Set();
 
         for (const [roleId, roleName] of Object.entries(roleNames)) {
-            const role = guild.roles.cache.get(roleId);
+            const role = await guild.roles.fetch(roleId);
             if (!role) continue;
 
             const members = role.members
@@ -120,7 +120,7 @@ async function updateRolePanel() {
             await messages.first().delete().catch(console.error);
         }
         await channel.send({ embeds: [embed] });
-
+        
         console.log("✅ Painel de hierarquia atualizado!");
     } catch (error) {
         console.error("❌ Erro ao atualizar o painel de hierarquia:", error);
@@ -139,3 +139,4 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
     console.log(`🌍 Servidor HTTP rodando na porta ${PORT}`);
 });
+
