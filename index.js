@@ -20,15 +20,15 @@ const rolePrefixes = {
 };
 
 const roleNames = {
-    "1336379818781966347": "👑 Líder",
-    "1336379726675050537": "🥇 Sublíder",
-    "1336379564766527582": "🏅 Gerente Geral",
-    "1344093359601619015": "🔫 Gerente de Ação",
-    "1341206842776359045": "💸 Gerente de Vendas",
-    "1336465729016303768": "🧰 Gerente de Recrutamento",
-    "1281863970676019253": "💎 Recrutador",
-    "1336412910582366349": "🎮 Responsável Elite",
-    "1336410539663949935": "🎯 Elite"
+    "1336379818781966347": "Líder",
+    "1336379726675050537": "Sublíder",
+    "1336379564766527582": "Gerente Geral",
+    "1344093359601619015": "Gerente de Ação",
+    "1341206842776359045": "Gerente de Vendas",
+    "1336465729016303768": "Gerente de Recrutamento",
+    "1281863970676019253": "Recrutador",
+    "1336412910582366349": "Responsável Elite",
+    "1336410539663949935": "ELITE"
 };
 
 const PANEL_CHANNEL_ID = "1336402917779050597"; // Canal da hierarquia
@@ -71,7 +71,9 @@ async function updateRolePanel() {
                 .map(member => `👤 <@${member.id}>`)
                 .join("\n") || "*Nenhum membro*";
 
-            hierarchyText += `**${roleName}**\n${members}\n\n`;
+            const rolePrefix = rolePrefixes[roleId] || roleName; // Usa a sigla com emoji
+
+            hierarchyText += `**${rolePrefix}**\n${members}\n\n`;
         }
 
         const messages = await channel.messages.fetch();
