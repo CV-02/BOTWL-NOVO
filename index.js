@@ -38,29 +38,24 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
     try {
         const guild = newMember.guild;
         
-        // Se já houver uma atualização em andamento para este membro, cancela a anterior
         if (updateQueue.has(newMember.id)) {
             clearTimeout(updateQueue.get(newMember.id));
         }
         
         updateQueue.set(newMember.id, setTimeout(async () => {
-            // Obtém os cargos do usuário ordenados pela posição hierárquica no servidor
             const roles = newMember.roles.cache
                 .filter(role => role.id in rolePrefixes)
                 .sort((a, b) => b.position - a.position);
 
-            // Obtém o apelido atual e remove qualquer sigla de cargo antiga com emojis e colchetes []
             let currentNickname = newMember.nickname || newMember.user.username;
             let baseName = currentNickname.replace(/([\p{Emoji}\p{Extended_Pictographic}]?\[[^\]]*\])/gu, "").trim();
             
             let newNickname = baseName;
             
             if (roles.size > 0) {
-                // Obtém a sigla do cargo mais alto e aplica antes do último colchete encontrado
                 const highestRole = roles.first();
                 const prefix = rolePrefixes[highestRole.id];
                 
-                // Garante que o nome completo não ultrapasse 32 caracteres
                 if ((prefix.length + newNickname.length + 1) <= 32) {
                     newNickname = `${prefix} ${newNickname}`.trim();
                 } else {
@@ -75,7 +70,7 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             
             updateQueue.delete(newMember.id);
             await updateRolePanel();
-        }, 1000)); // Tempo de espera de 1 segundo para evitar conflitos de atualização rápida
+        }, 1000));
         
     } catch (error) {
         console.error("❌ Erro ao atualizar nickname:", error);
@@ -93,23 +88,32 @@ async function updateRolePanel() {
         const embed = new EmbedBuilder()
             .setTitle("📜 Hierarquia dos Cargos")
             .setDescription("Aqui está a hierarquia da facção e seus membros:")
-            .setColor(0x0000FF) // Azul em formato hexadecimal para evitar erro de conversão
+            .setColor(0x0000FF)
             .setFooter({ text: "Facção RP" });
+
+        let assignedMembers = new Set();
 
         for (const [roleId, roleName] of Object.entries(rolePrefixes)) {
             const role = guild.roles.cache.get(roleId);
             if (!role) continue;
 
-            const members = role.members.map(member => `<@${member.id}>`).join("\n") || "Nenhum membro";
+            const members = role.members
+                .filter(member => !assignedMembers.has(member.id))
+                .map(member => {
+                    assignedMembers.add(member.id);
+                    return `<@${member.id}>`;
+                })
+                .join("\n") || "Nenhum membro";
+
             embed.addFields({ name: roleName, value: members, inline: false });
         }
 
         const messages = await channel.messages.fetch();
         if (messages.size > 0) {
-            await messages.first().edit({ embeds: [embed] });
-        } else {
-            await channel.send({ embeds: [embed] });
+            await messages.first().delete().catch(console.error);
         }
+        await channel.send({ embeds: [embed] });
+        
         console.log("✅ Painel de hierarquia atualizado!");
     } catch (error) {
         console.error("❌ Erro ao atualizar o painel de hierarquia:", error);
@@ -118,7 +122,6 @@ async function updateRolePanel() {
 
 client.login(process.env.TOKEN);
 
-// Servidor Express para manter o bot online
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -129,4 +132,3 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
     console.log(`🌍 Servidor HTTP rodando na porta ${PORT}`);
 });
-
