@@ -37,9 +37,9 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             .filter(role => role.id in rolePrefixes)
             .sort((a, b) => b.position - a.position);
 
-        // Obtém o apelido atual e remove apenas as siglas dentro de colchetes [], mantendo emojis personalizados
+        // Obtém o apelido atual e remove qualquer sigla de cargo antiga com emojis e colchetes []
         let currentNickname = newMember.nickname || newMember.user.username;
-        let baseName = currentNickname.replace(/(\[[^\]]*\])/g, "").trim();
+        let baseName = currentNickname.replace(/([\p{Emoji}\p{Extended_Pictographic}]?\[[^\]]*\])/gu, "").trim();
         
         // Evita mudanças repetitivas e respeita alterações manuais
         if (oldMember.roles.cache.equals(newMember.roles.cache)) {
@@ -55,9 +55,9 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
             
             // Garante que o nome completo não ultrapasse 32 caracteres
             if ((prefix.length + newNickname.length + 1) <= 32) {
-                newNickname = newNickname.replace(/(\[[^\]]*\])/, `${prefix}$1`).trim();
+                newNickname = `${prefix} ${newNickname}`.trim();
             } else {
-                newNickname = newNickname.replace(/(\[[^\]]*\])/, `${prefix}$1`).substring(0, 32).trim();
+                newNickname = `${prefix} ${newNickname.substring(0, 32 - prefix.length - 1)}`.trim();
             }
         }
         
