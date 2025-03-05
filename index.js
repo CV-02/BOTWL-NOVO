@@ -24,36 +24,39 @@ let hierarchyMessageId = null; // ID da mensagem fixa do painel
 
 client.once("ready", async () => {
     console.log(`✅ Bot online como ${client.user.tag}`);
+    await loadHierarchyMessageId(); // Recupera a mensagem do painel se já existir
     await updateRolePanel(); // Atualiza a hierarquia assim que iniciar
 });
 
 // Monitora mudanças nos cargos dos membros
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
     try {
-        await updateMemberNickname(oldMember, newMember);
+        await updateMemberNickname(newMember);
         await updateRolePanel();
     } catch (error) {
         console.error("❌ Erro ao atualizar:", error);
     }
 });
 
-// Atualiza o nome do membro com a sigla do cargo
-async function updateMemberNickname(oldMember, newMember) {
+// **Função para atualizar o nome do membro**
+async function updateMemberNickname(member) {
     try {
         let currentPrefix = null;
 
+        // Identifica a sigla do cargo do membro
         for (const [roleId, prefix] of Object.entries(rolePrefixes)) {
-            if (newMember.roles.cache.has(roleId)) {
+            if (member.roles.cache.has(roleId)) {
                 currentPrefix = prefix;
                 break; // Para no primeiro cargo encontrado (prioridade)
             }
         }
 
-        const cleanName = newMember.displayName.replace(/^[^\s]+\s/, ""); // Remove qualquer prefixo anterior
+        let cleanName = member.displayName.replace(/^(\S+)\s/, ""); // Remove qualquer sigla antiga
         const newNickname = currentPrefix ? `${currentPrefix} ${cleanName}` : cleanName;
 
-        if (newMember.displayName !== newNickname) {
-            await newMember.setNickname(newNickname).catch(console.error);
+        // Atualiza apenas se for necessário
+        if (member.displayName !== newNickname) {
+            await member.setNickname(newNickname).catch(console.error);
             console.log(`✅ Nome atualizado: ${newNickname}`);
         }
     } catch (error) {
@@ -61,7 +64,27 @@ async function updateMemberNickname(oldMember, newMember) {
     }
 }
 
-// Atualiza o painel da hierarquia
+// **Função para carregar a mensagem existente do painel de hierarquia**
+async function loadHierarchyMessageId() {
+    try {
+        const channel = await client.channels.fetch(PANEL_CHANNEL_ID);
+        if (!channel || !(channel instanceof TextChannel)) {
+            return console.error("❌ Canal de hierarquia não encontrado ou inválido!");
+        }
+
+        const messages = await channel.messages.fetch({ limit: 10 });
+        const existingMessage = messages.find(msg => msg.author.id === client.user.id);
+
+        if (existingMessage) {
+            hierarchyMessageId = existingMessage.id;
+            console.log(`📌 Mensagem de hierarquia encontrada: ${hierarchyMessageId}`);
+        }
+    } catch (error) {
+        console.error("❌ Erro ao carregar a mensagem de hierarquia:", error);
+    }
+}
+
+// **Função para atualizar o painel da hierarquia**
 async function updateRolePanel() {
     try {
         const guild = client.guilds.cache.first();
@@ -93,30 +116,23 @@ async function updateRolePanel() {
             hierarchyText += `**${rolePrefix}**\n${members}\n\n`;
         }
 
-        // Busca mensagens no canal para reutilizar a existente
-        const messages = await channel.messages.fetch({ limit: 10 });
-        if (!hierarchyMessageId) {
-            const existingMessage = messages.find(msg => msg.author.id === client.user.id);
-            if (existingMessage) {
-                hierarchyMessageId = existingMessage.id;
-            }
-        }
-
+        // **Se a mensagem de hierarquia já existir, apenas edita**
         if (hierarchyMessageId) {
             try {
                 const msg = await channel.messages.fetch(hierarchyMessageId);
                 await msg.edit(hierarchyText);
+                console.log("✅ Hierarquia atualizada com sucesso!");
             } catch (error) {
                 console.error("❌ Erro ao editar a mensagem, criando uma nova...");
                 const newMessage = await channel.send(hierarchyText);
                 hierarchyMessageId = newMessage.id;
             }
         } else {
+            // **Se não existir, cria uma nova**
             const newMessage = await channel.send(hierarchyText);
             hierarchyMessageId = newMessage.id;
+            console.log("✅ Hierarquia criada e mensagem salva!");
         }
-
-        console.log("✅ Hierarquia atualizada com sucesso!");
     } catch (error) {
         console.error("❌ Erro ao atualizar a hierarquia:", error);
     }
