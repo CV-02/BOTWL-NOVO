@@ -6,7 +6,7 @@ dotenv.config();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
 
-// Configuração de cargos e siglas para os nomes dos membros
+// Configuração de siglas para nomes dos membros
 const rolePrefixes = {
     "1336379818781966347": "👑[Líder]",
     "1336379726675050537": "🥇[Sublíder]",
@@ -19,7 +19,7 @@ const rolePrefixes = {
     "1336410539663949935": "🎯[ELITE]"
 };
 
-// Configuração de nomes completos para o painel de hierarquia
+// Configuração dos nomes completos para o painel da hierarquia
 const roleDisplayNames = {
     "1336379818781966347": "👑 Líder",
     "1336379726675050537": "🥇 Sublíder",
@@ -51,12 +51,12 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
     }
 });
 
-// **Função para atualizar o nome do membro sem apagar o nome original**
+// **Atualiza o nome do membro sem apagar o nome original**
 async function updateMemberNickname(member) {
     try {
         let currentPrefix = null;
 
-        // Identifica a sigla do cargo do membro
+        // Identifica a sigla correta do cargo do membro
         for (const [roleId, prefix] of Object.entries(rolePrefixes)) {
             if (member.roles.cache.has(roleId)) {
                 currentPrefix = prefix;
@@ -64,12 +64,17 @@ async function updateMemberNickname(member) {
             }
         }
 
-        // **Preserva tudo depois do "]" e edita apenas a sigla**
+        // **Mantém apenas a sigla antes do "]", preservando o nome**
         let originalName = member.displayName;
-        let cleanName = originalName.replace(/^[^\]]+\]\s*/, ""); // Remove qualquer sigla antiga sem apagar o nome
-        const newNickname = currentPrefix ? `${currentPrefix} ${cleanName}` : cleanName;
+        let cleanName = originalName.replace(/^[^\]]+\]\s*/, "").trim(); // Remove qualquer sigla antiga
+        let newNickname = currentPrefix ? `${currentPrefix} ${cleanName}` : cleanName;
 
-        // Atualiza apenas se for necessário
+        // Se o nome for muito longo (máx. 32 caracteres), corta
+        if (newNickname.length > 32) {
+            newNickname = newNickname.substring(0, 29) + "...";
+        }
+
+        // Atualiza apenas se necessário
         if (originalName !== newNickname) {
             await member.setNickname(newNickname).catch(console.error);
             console.log(`✅ Nome atualizado: ${newNickname}`);
@@ -79,7 +84,7 @@ async function updateMemberNickname(member) {
     }
 }
 
-// **Função para carregar a mensagem existente do painel de hierarquia**
+// **Carrega a mensagem existente do painel de hierarquia**
 async function loadHierarchyMessageId() {
     try {
         const channel = await client.channels.fetch(PANEL_CHANNEL_ID);
@@ -99,7 +104,7 @@ async function loadHierarchyMessageId() {
     }
 }
 
-// **Função para atualizar o painel da hierarquia**
+// **Atualiza o painel da hierarquia sem perder a estrutura atual**
 async function updateRolePanel() {
     try {
         const guild = client.guilds.cache.first();
