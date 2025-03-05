@@ -64,9 +64,9 @@ async function updateMemberNickname(member) {
             }
         }
 
-        // **Mantém apenas a sigla antes do "]", preservando o nome**
+        // Mantém o nome original e edita apenas a sigla
         let originalName = member.displayName;
-        let cleanName = originalName.replace(/^\S+\s*/, "").trim(); // Remove qualquer sigla antiga sem apagar o nome
+        let cleanName = originalName.replace(/^\S+\s*/, "").trim(); // Remove qualquer sigla antiga sem modificar o nome
         let newNickname = currentPrefix ? `${currentPrefix} ${cleanName}` : cleanName;
 
         // Se o nome for muito longo (máx. 32 caracteres), corta
