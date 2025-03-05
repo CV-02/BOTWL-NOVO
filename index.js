@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
 
 // Configuração de cargos e siglas
 const rolePrefixes = {
@@ -30,8 +30,8 @@ client.once("ready", async () => {
 // Monitora mudanças nos cargos dos membros
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
     try {
-        await updateRolePanel();
         await updateMemberNickname(oldMember, newMember);
+        await updateRolePanel();
     } catch (error) {
         console.error("❌ Erro ao atualizar:", error);
     }
@@ -40,21 +40,21 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
 // Atualiza o nome do membro com a sigla do cargo
 async function updateMemberNickname(oldMember, newMember) {
     try {
-        for (const [roleId, prefix] of Object.entries(rolePrefixes)) {
-            const hadRole = oldMember.roles.cache.has(roleId);
-            const hasRoleNow = newMember.roles.cache.has(roleId);
-            const cleanName = newMember.displayName.replace(/^[^\s]+\s/, ""); // Remove qualquer prefixo anterior
+        let currentPrefix = null;
 
-            if (hasRoleNow && !hadRole) {
-                // Adiciona a sigla no nome
-                const newNickname = `${prefix} ${cleanName}`;
-                await newMember.setNickname(newNickname).catch(console.error);
-                console.log(`✅ Nome atualizado: ${newNickname}`);
-            } else if (!hasRoleNow && hadRole) {
-                // Remove a sigla quando o cargo é perdido
-                await newMember.setNickname(cleanName).catch(console.error);
-                console.log(`✅ Nome restaurado: ${cleanName}`);
+        for (const [roleId, prefix] of Object.entries(rolePrefixes)) {
+            if (newMember.roles.cache.has(roleId)) {
+                currentPrefix = prefix;
+                break; // Para no primeiro cargo encontrado (prioridade)
             }
+        }
+
+        const cleanName = newMember.displayName.replace(/^[^\s]+\s/, ""); // Remove qualquer prefixo anterior
+        const newNickname = currentPrefix ? `${currentPrefix} ${cleanName}` : cleanName;
+
+        if (newMember.displayName !== newNickname) {
+            await newMember.setNickname(newNickname).catch(console.error);
+            console.log(`✅ Nome atualizado: ${newNickname}`);
         }
     } catch (error) {
         console.error("❌ Erro ao atualizar nome do membro:", error);
@@ -80,13 +80,14 @@ async function updateRolePanel() {
             const role = await guild.roles.fetch(roleId);
             if (!role) continue;
 
+            // Lista os membros sem repetir a sigla
             const members = role.members
                 .filter(member => {
-                    if (assignedMembers.has(member.id)) return false;
+                    if (assignedMembers.has(member.id)) return false; // Evita duplicação
                     assignedMembers.add(member.id);
                     return true;
                 })
-                .map(member => `👤 <@${member.id}>`)
+                .map(member => `👤 <@${member.id}>`) // Apenas o nome do membro
                 .join("\n") || "*Nenhum membro*";
 
             hierarchyText += `**${rolePrefix}**\n${members}\n\n`;
