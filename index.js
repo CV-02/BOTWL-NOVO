@@ -6,16 +6,16 @@ dotenv.config();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
 
-// Configuração de siglas para nomes dos membros
+// Configuração das siglas que vão para os NICKS dos membros (com emoji)
 const rolePrefixes = {
-    "1336379818781966347": "👑[Líder]",
-    "1336379726675050537": "🥇[Sublíder]",
+    "1336379818781966347": "👑[LIDER]",
+    "1336379726675050537": "🥇[SUB]",
     "1336379564766527582": "🏅[G.G]",
     "1344093359601619015": "🔫[G.A]",
     "1341206842776359045": "💸[G.V]",
     "1336465729016303768": "🧰[G.R]",
     "1281863970676019253": "💎[REC]",
-    "1336412910582366349": "🎮[RES.ELITE]",
+    "1336412910582366349": "🎮[R.ELITE]",
     "1336410539663949935": "🎯[ELITE]"
 };
 
@@ -66,7 +66,7 @@ async function updateMemberNickname(member) {
 
         // **Mantém apenas a sigla antes do "]", preservando o nome**
         let originalName = member.displayName;
-        let cleanName = originalName.replace(/^[^\]]+\]\s*/, "").trim(); // Remove qualquer sigla antiga
+        let cleanName = originalName.replace(/^\S+\s*/, "").trim(); // Remove qualquer sigla antiga sem apagar o nome
         let newNickname = currentPrefix ? `${currentPrefix} ${cleanName}` : cleanName;
 
         // Se o nome for muito longo (máx. 32 caracteres), corta
@@ -130,7 +130,7 @@ async function updateRolePanel() {
                     assignedMembers.add(member.id);
                     return true;
                 })
-                .map(member => `👤 <@${member.id}>`) // Apenas o nome do membro
+                .map(member => `- 👤 <@${member.id}>`) // Apenas o nome do membro
                 .join("\n") || "*Nenhum membro*";
 
             hierarchyText += `**${displayName}**\n${members}\n\n`;
