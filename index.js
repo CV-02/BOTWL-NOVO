@@ -6,7 +6,7 @@ dotenv.config();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
 
-// Configuração de cargos e siglas
+// Configuração de cargos e siglas para os nomes dos membros
 const rolePrefixes = {
     "1336379818781966347": "👑[Líder]",
     "1336379726675050537": "🥇[Sublíder]",
@@ -17,6 +17,19 @@ const rolePrefixes = {
     "1281863970676019253": "💎[REC]",
     "1336412910582366349": "🎮[RES.ELITE]",
     "1336410539663949935": "🎯[ELITE]"
+};
+
+// Configuração de nomes completos para o painel de hierarquia
+const roleDisplayNames = {
+    "1336379818781966347": "👑 Líder",
+    "1336379726675050537": "🥇 Sublíder",
+    "1336379564766527582": "🏅 Gerente Geral",
+    "1344093359601619015": "🔫 Gerente de Ação",
+    "1341206842776359045": "💸 Gerente de Vendas",
+    "1336465729016303768": "🧰 Gerente de Recrutamento",
+    "1281863970676019253": "💎 Recrutador",
+    "1336412910582366349": "🎮 Responsável Elite",
+    "1336410539663949935": "🎯 Elite"
 };
 
 const PANEL_CHANNEL_ID = "1336402917779050597"; // Canal da hierarquia
@@ -38,7 +51,7 @@ client.on("guildMemberUpdate", async (oldMember, newMember) => {
     }
 });
 
-// **Função para atualizar o nome do membro**
+// **Função para atualizar o nome do membro sem apagar o nome original**
 async function updateMemberNickname(member) {
     try {
         let currentPrefix = null;
@@ -51,11 +64,13 @@ async function updateMemberNickname(member) {
             }
         }
 
-        let cleanName = member.displayName.replace(/^(\S+)\s/, ""); // Remove qualquer sigla antiga
+        // **Preserva tudo depois do "]" e edita apenas a sigla**
+        let originalName = member.displayName;
+        let cleanName = originalName.replace(/^[^\]]+\]\s*/, ""); // Remove qualquer sigla antiga sem apagar o nome
         const newNickname = currentPrefix ? `${currentPrefix} ${cleanName}` : cleanName;
 
         // Atualiza apenas se for necessário
-        if (member.displayName !== newNickname) {
+        if (originalName !== newNickname) {
             await member.setNickname(newNickname).catch(console.error);
             console.log(`✅ Nome atualizado: ${newNickname}`);
         }
@@ -99,7 +114,7 @@ async function updateRolePanel() {
 
         let assignedMembers = new Set();
 
-        for (const [roleId, rolePrefix] of Object.entries(rolePrefixes)) {
+        for (const [roleId, displayName] of Object.entries(roleDisplayNames)) {
             const role = await guild.roles.fetch(roleId);
             if (!role) continue;
 
@@ -113,7 +128,7 @@ async function updateRolePanel() {
                 .map(member => `👤 <@${member.id}>`) // Apenas o nome do membro
                 .join("\n") || "*Nenhum membro*";
 
-            hierarchyText += `**${rolePrefix}**\n${members}\n\n`;
+            hierarchyText += `**${displayName}**\n${members}\n\n`;
         }
 
         // **Se a mensagem de hierarquia já existir, apenas edita**
